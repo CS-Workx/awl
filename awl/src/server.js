@@ -1,3 +1,18 @@
+/**
+ * AWL Scanner - Aanwezigheidslijst Scanner voor Trainers
+ * Copyright (C) 2026 Steff Van Haverbeke / The House of Coaching
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ */
+
 require('dotenv').config();
 const express = require('express');
 const multer = require('multer');
@@ -106,14 +121,31 @@ app.post('/api/scan', upload.single('image'), async (req, res) => {
     }
 
     console.log('Processing image...');
+    console.log('File info:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
 
-    // 1. Process image with Gemini Vision
+    // 1. Convert image to JPEG format (compatible with Gemini)
+    let processedImageBuffer;
+    try {
+      processedImageBuffer = await sharp(req.file.buffer)
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      console.log('Image converted to JPEG, size:', processedImageBuffer.length);
+    } catch (conversionError) {
+      console.error('Image conversion error:', conversionError);
+      return res.status(500).json({ error: 'Kon afbeelding niet verwerken' });
+    }
+
+    // 2. Process image with Gemini Vision
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const imageData = {
       inlineData: {
-        data: req.file.buffer.toString('base64'),
-        mimeType: req.file.mimetype
+        data: processedImageBuffer.toString('base64'),
+        mimeType: 'image/jpeg'
       }
     };
 
@@ -144,8 +176,21 @@ Regels:
 - Laat velden leeg ("") als de info niet zichtbaar is
 - Geef ALLEEN valid JSON terug, geen andere tekst`;
 
-    const result = await model.generateContent([prompt, imageData]);
+    console.log('Sending request to Gemini API...');
+    let result;
+    try {
+      result = await model.generateContent([prompt, imageData]);
+      console.log('Gemini API response received');
+    } catch (geminiError) {
+      console.error('Gemini API error:', geminiError);
+      return res.status(500).json({ 
+        error: 'Fout bij AI verwerking: ' + geminiError.message,
+        details: geminiError.toString()
+      });
+    }
+
     const responseText = result.response.text();
+    console.log('Response text length:', responseText.length);
 
     // Parse the JSON from Gemini's response
     let parsedData;

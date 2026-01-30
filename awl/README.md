@@ -1,5 +1,8 @@
 # AWL Scanner
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Codeberg](https://img.shields.io/badge/Codeberg-cs--workx%2Ftools-blue?logo=codeberg)](https://codeberg.org/cs-workx/tools/src/branch/main/awl)
+
 **Aanwezigheidslijst Scanner voor Trainers**
 
 Een Progressive Web App (PWA) die het makkelijk maakt om papieren aanwezigheidslijsten te scannen, digitaliseren en doorsturen.
@@ -12,6 +15,15 @@ Een Progressive Web App (PWA) die het makkelijk maakt om papieren aanwezigheidsl
 - **PDF**: Gescande afbeelding wordt omgezet naar PDF
 - **Email**: Verstuur beide bestanden naar je contactpersonen met één klik
 - **PWA**: Installeerbaar op je iPhone home screen
+
+---
+
+## ⚠️ Important Notes
+
+- This is a self-hosted solution - you need your own VPS
+- Requires API keys (Gemini AI, SMTP credentials)
+- Data stays on your server (privacy by design)
+- Best suited for trainers/educators in Belgium/Netherlands
 
 ---
 
@@ -190,8 +202,25 @@ awl-scanner/
 
 ---
 
-## Support
+## Contributing
 
-Vragen? Neem contact op met de ontwikkelaar.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-Gebouwd met ❤️ voor trainers die hun administratie willen vereenvoudigen.
+Please read our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+---
+
+## Support & Contact
+
+- Issues: [Codeberg Issues](https://codeberg.org/cs-workx/tools/issues)
+- Email: steff@thehouseofcoaching.com
+- Security: See [SECURITY.md](../SECURITY.md)
+
+## License
+
+Copyright (C) 2026 Steff Van Haverbeke / The House of Coaching
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+See [LICENSE](../LICENSE) for details.
+
