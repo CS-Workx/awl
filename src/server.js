@@ -497,7 +497,7 @@ apiRouter.post('/api/send', async (req, res) => {
             },
             {
               filename: `${baseFilename}.csv`,
-              content: csv,
+              content: Buffer.from(csv, 'utf-8'),
               contentType: 'text/csv'
             }
           ]
