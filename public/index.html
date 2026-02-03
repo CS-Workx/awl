@@ -88,6 +88,42 @@
         --gray-700: #E5E7EB;
         --gray-900: #F9FAFB;
       }
+      
+      /* Dark mode specific overrides */
+      .contact-item.selected {
+        background: rgba(234, 48, 45, 0.15);
+        border: 2px solid var(--primary);
+      }
+      
+      .contact-item.selected .contact-name {
+        color: var(--color-white);
+      }
+      
+      .contact-item.selected .contact-email {
+        color: #D1D5DB;
+      }
+      
+      .btn-outline {
+        background: var(--bg-tertiary);
+        color: var(--gray-700);
+        border: 2px solid var(--gray-200);
+      }
+      
+      .btn-outline:hover {
+        background: rgba(234, 48, 45, 0.1);
+        border-color: var(--primary);
+        color: var(--primary);
+      }
+      
+      .message-input {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border-color: var(--gray-200);
+      }
+      
+      .message-input::placeholder {
+        color: var(--gray-300);
+      }
     }
 
     body {
@@ -443,11 +479,12 @@
 
     .contact-name {
       font-weight: 500;
+      color: var(--text-primary);
     }
 
     .contact-email {
       font-size: 0.75rem;
-      color: var(--gray-500);
+      color: var(--text-secondary);
     }
 
     .contact-delete {
