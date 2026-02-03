@@ -12,14 +12,24 @@
 logs/
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Dependencies
 node_modules/
 
 # Data
 data/
+data/contacts.json
 *.db
 *.sqlite
+
+# Build outputs
+.vercel
+dist/
+build/
+.cache/
+coverage/
 
 # IDE
 .vscode/

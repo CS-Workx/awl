@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#4F46E5">
+  <title>AWL Scanner</title>
+  <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- HEIC to JPEG conversion library -->
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #4F46E5;
+      --primary-dark: #4338CA;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      
+      /* Light mode colors */
+      --bg-primary: #FFFFFF;
+      --bg-secondary: #F9FAFB;
+      --bg-tertiary: #F3F4F6;
+      --text-primary: #111827;
+      --text-secondary: #6B7280;
+      --border-color: #E5E7EB;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --card-bg: #FFFFFF;
+      
+      --gray-50: #F9FAFB;
+      --gray-100: #F3F4F6;
+      --gray-200: #E5E7EB;
+      --gray-300: #D1D5DB;
+      --gray-500: #6B7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Dark mode colors */
+        --bg-primary: #1F2937;
+        --bg-secondary: #111827;
+        --bg-tertiary: #374151;
+        --text-primary: #F9FAFB;
+        --text-secondary: #9CA3AF;
+        --border-color: #374151;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --card-bg: #1F2937;
+        
+        --gray-50: #374151;
+        --gray-100: #4B5563;
+        --gray-200: #6B7280;
+        --gray-300: #9CA3AF;
+        --gray-500: #D1D5DB;
+        --gray-700: #E5E7EB;
+        --gray-900: #F9FAFB;
+      }
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 1rem;
+      padding-top: calc(1rem + env(safe-area-inset-top));
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header p {
+      font-size: 0.875rem;
+      opacity: 0.9;
+      margin-top: 0.25rem;
+    }
+
+    /* Main Content */
+    main {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Step Indicator */
+    .steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 1rem;
+      left: 2rem;
+      right: 2rem;
+      height: 2px;
+      background: var(--gray-200);
+      z-index: 0;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all 0.3s ease;
+    }
+
+    .step.active .step-number {
+      background: var(--primary);
+      color: white;
+    }
+
+    .step.completed .step-number {
+      background: var(--success);
+      color: white;
+    }
+
+    .step-label {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      font-weight: 500;
+    }
+
+    .step.active .step-label {
+      color: var(--primary);
+    }
+
+    /* Camera/Upload Area */
+    .capture-area {
+      border: 2px dashed var(--gray-300);
+      border-radius: 0.75rem;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: var(--gray-50);
+    }
+
+    .capture-area:hover {
+      border-color: var(--primary);
+      background: var(--bg-tertiary);
+    }
+
+    .capture-area.has-image {
+      border-style: solid;
+      border-color: var(--success);
+      padding: 0.5rem;
+    }
+
+    .capture-area svg {
+      width: 3rem;
+      height: 3rem;
+      color: var(--gray-400);
+      margin-bottom: 0.5rem;
+    }
+
+    .capture-area p {
+      color: var(--gray-500);
+      font-size: 0.875rem;
+    }
+
+    .capture-area img {
+      max-width: 100%;
+      border-radius: 0.5rem;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.875rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 1rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+      background: var(--gray-300);
+      cursor: not-allowed;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-outline {
+      background: white;
+      color: var(--gray-700);
+      border: 2px solid var(--gray-200);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    .btn-icon {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+    }
+
+    /* Results Section */
+    .results {
+      display: none;
+    }
+
+    .results.visible {
+      display: block;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .summary-item {
+      background: var(--gray-50);
+      padding: 1rem;
+      border-radius: 0.75rem;
+      text-align: center;
+    }
+
+    .summary-item .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .summary-item .label {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+      margin-top: 0.25rem;
+    }
+
+    /* Participants Table */
+    .participants-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .participants-table th {
+      text-align: left;
+      padding: 0.75rem 0.5rem;
+      border-bottom: 2px solid var(--gray-200);
+      color: var(--gray-500);
+      font-weight: 500;
+    }
+
+    .participants-table td {
+      padding: 0.75rem 0.5rem;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .status-badge.present {
+      background: #D1FAE5;
+      color: #065F46;
+    }
+
+    .status-badge.absent {
+      background: #FEE2E2;
+      color: #991B1B;
+    }
+
+    /* Contacts Section */
+    .contacts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: var(--gray-50);
+      border-radius: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .contact-item:hover {
+      background: var(--gray-100);
+    }
+
+    .contact-item.selected {
+      background: #EEF2FF;
+      border: 2px solid var(--primary);
+    }
+
+    .contact-item input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      accent-color: var(--primary);
+    }
+
+    .contact-info {
+      flex: 1;
+    }
+
+    .contact-name {
+      font-weight: 500;
+    }
+
+    .contact-email {
+      font-size: 0.75rem;
+      color: var(--gray-500);
+    }
+
+    .contact-delete {
+      color: var(--gray-400);
+      padding: 0.5rem;
+      cursor: pointer;
+    }
+
+    .contact-delete:hover {
+      color: var(--danger);
+    }
+
+    /* Add Contact Form */
+    .add-contact-form {
+      display: none;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .add-contact-form.visible {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 2px solid var(--gray-200);
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Custom Message */
+    .message-input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid var(--gray-200);
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .message-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Loading State */
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.9);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .loading-overlay.visible {
+      display: flex;
+    }
+
+    .spinner {
+      width: 3rem;
+      height: 3rem;
+      border: 4px solid var(--gray-200);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-weight: 500;
+      color: var(--gray-700);
+    }
+
+    /* Toast Notifications */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(100%);
+      background: var(--gray-900);
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 500;
+      z-index: 1001;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .toast.visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    /* Section visibility */
+    .section {
+      display: none;
+    }
+
+    .section.visible {
+      display: block;
+    }
+
+    /* Settings toggle */
+    .settings-toggle {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 0.5rem;
+      cursor: pointer;
+      opacity: 0.8;
+    }
+
+    .settings-toggle:hover {
+      opacity: 1;
+    }
+
+    header {
+      position: relative;
+    }
+
+    /* Reset button */
+    .reset-btn {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        AWL Scanner
+      </h1>
+      <p>Scan, digitaliseer & verstuur aanwezigheidslijsten</p>
+    </div>
+    <div class="settings-toggle" onclick="toggleSettings()">
+      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+    </div>
+  </header>
+
+  <main>
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step active" data-step="1">
+        <div class="step-number">1</div>
+        <span class="step-label">Scan</span>
+      </div>
+      <div class="step" data-step="2">
+        <div class="step-number">2</div>
+        <span class="step-label">Check</span>
+      </div>
+      <div class="step" data-step="3">
+        <div class="step-number">3</div>
+        <span class="step-label">Verstuur</span>
+      </div>
+    </div>
+
+    <!-- Step 1: Scan -->
+    <div class="section visible" id="section-scan">
+      <div class="card">
+        <h2>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="9" y1="21" x2="9" y2="9"></line>
+          </svg>
+          Scan Aanwezigheidslijst
+        </h2>
+
+        <div class="capture-area" id="captureArea" onclick="document.getElementById('fileInput').click()">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"></path>
+            <path d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z"></path>
+          </svg>
+          <p>Tik om foto te maken of bestand te kiezen</p>
+        </div>
+
+        <!-- Warning banner for image limit -->
+        <div style="background: var(--warning); background-opacity: 0.1; border: 1px solid var(--warning); padding: 12px; margin: 15px 0; border-radius: 8px; font-size: 14px; color: var(--text-primary);">
+          ⚠️ <strong>Let op:</strong> Maximum 3 foto's per keer aanbevolen voor optimale prestaties. Voor meer foto's: verwerk in meerdere batches.
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*" multiple capture="environment">
+
+        <div id="imageCount" style="display:none; margin-top: 10px; text-align: center; color: var(--text-secondary);">
+          <strong>Geselecteerd:</strong> <span id="imageCountText">0</span> foto's
+        </div>
+
+        <button class="btn btn-primary" id="processBtn" disabled style="margin-top: 1rem;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+          </svg>
+          Verwerk met AI
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Results -->
+    <div class="section" id="section-results">
+      <div class="card">
+        <h2>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Resultaat
+        </h2>
+
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="value" id="totalCount">0</div>
+            <div class="label">Totaal</div>
+          </div>
+          <div class="summary-item">
+            <div class="value" id="presentCount">0</div>
+            <div class="label">Aanwezig</div>
+          </div>
+          <div class="summary-item">
+            <div class="value" id="absentCount">0</div>
+            <div class="label">Afwezig</div>
+          </div>
+        </div>
+
+        <div id="trainingInfo" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--gray-50); border-radius: 0.5rem;">
+          <strong>Training:</strong> <span id="trainingName">-</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="participants-table">
+            <thead>
+              <tr>
+                <th>Naam</th>
+                <th>Bedrijf</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="participantsBody">
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+          <button class="btn btn-outline" onclick="goToStep(1)">
+            Opnieuw scannen
+          </button>
+          <button class="btn btn-primary" onclick="goToStep(3)">
+            Versturen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Send -->
+    <div class="section" id="section-send">
+      <div class="card">
+        <h2>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>
+          Kies Ontvangers
+        </h2>
+
+        <div class="contacts-list" id="contactsList">
+          <!-- Contacts loaded dynamically -->
+        </div>
+
+        <button class="btn btn-outline btn-sm" onclick="toggleAddContact()">
+          + Contact toevoegen
+        </button>
+
+        <div class="add-contact-form" id="addContactForm">
+          <div class="input-group">
+            <input type="text" class="input" id="newContactName" placeholder="Naam">
+            <input type="email" class="input" id="newContactEmail" placeholder="Email">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addContact()">Toevoegen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          Extra Bericht (optioneel)
+        </h2>
+        <textarea class="message-input" id="customMessage" placeholder="Voeg een persoonlijke boodschap toe..."></textarea>
+      </div>
+
+      <button class="btn btn-success" id="sendBtn" onclick="sendEmail()">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+        Verstuur Email
+      </button>
+
+      <button class="btn btn-outline reset-btn" onclick="resetAll()">
+        Nieuwe Scan Starten
+      </button>
+    </div>
+
+    <!-- Settings Section (hidden by default) -->
+    <div class="section" id="section-settings">
+      <div class="card">
+        <h2>
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          Contacten Beheren
+        </h2>
+
+        <div class="contacts-list" id="settingsContactsList">
+          <!-- Contacts loaded dynamically -->
+        </div>
+
+        <div class="add-contact-form visible" style="display: flex;">
+          <div class="input-group">
+            <input type="text" class="input" id="settingsNewName" placeholder="Naam">
+            <input type="email" class="input" id="settingsNewEmail" placeholder="Email">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addContactFromSettings()">Toevoegen</button>
+        </div>
+
+        <button class="btn btn-outline" style="margin-top: 1rem;" onclick="toggleSettings()">
+          Terug
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">Verwerken...</div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ============ BASE_PATH AUTO-DETECTION ============
+    // Detect base path voor subfolder deployment (bijv. /awl)
+    const BASE_PATH = (() => {
+      const path = window.location.pathname;
+      // Match eerste segment: /awl/, /awl/index.html, etc.
+      const match = path.match(/^\/([^\/]+)/);
+      // Als we in een subfolder zitten (niet root en niet een file)
+      if (match && match[1] && match[1] !== 'index.html') {
+        return '/' + match[1];
+      }
+      return '';
+    })();
+
+    // Helper functie voor API URLs
+    function getApiUrl(path) {
+      return BASE_PATH + path;
+    }
+
+    console.log('🔧 BASE_PATH detected:', BASE_PATH || '/ (root)');
+
+    // ============ STATE ============
+    let currentStep = 1;
+    let contacts = [];
+    let selectedContacts = new Set();
+    let scanResult = null;
+    let capturedImages = []; // Array to hold multiple images
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Inject manifest en icon links met BASE_PATH
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = BASE_PATH + '/manifest.json';
+      document.head.appendChild(manifestLink);
+
+      const iconLink = document.createElement('link');
+      iconLink.rel = 'apple-touch-icon';
+      iconLink.href = BASE_PATH + '/icon-192.png';
+      document.head.appendChild(iconLink);
+
+      console.log('📱 PWA assets loaded:', {
+        manifest: manifestLink.href,
+        icon: iconLink.href
+      });
+
+      loadContacts();
+      setupFileInput();
+    });
+
+    // File Input
+    function setupFileInput() {
+      const fileInput = document.getElementById('fileInput');
+      const captureArea = document.getElementById('captureArea');
+      const processBtn = document.getElementById('processBtn');
+
+      fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        // Soft warning for > 3 images (performance recommendation)
+        if (files.length > 3) {
+          showToast('⚠️ Meer dan 3 foto\'s kan langer duren. Voor beste prestaties: gebruik max 3 foto\'s per keer.', 'warning');
+        }
+        
+        // Hard limit at 5 images (technical constraint)
+        if (files.length > 5) {
+          showToast('Maximum 5 foto\'s toegestaan', 'error');
+          fileInput.value = '';
+          return;
+        }
+        
+        showLoading(`${files.length} foto${files.length > 1 ? '\'s' : ''} verwerken...`);
+        capturedImages = [];
+        
+        // Process each file (HEIC conversion if needed)
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          
+          // Convert HEIC if needed
+          if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic')) {
+            try {
+              const convertedFile = await convertHEICtoJPEG(file);
+              capturedImages.push(convertedFile);
+            } catch (error) {
+              console.error(`HEIC conversion failed for image ${i+1}:`, error);
+              showToast(`Foto ${i+1} kon niet geconverteerd worden`, 'error');
+            }
+          } else {
+            capturedImages.push(file);
+          }
+        }
+        
+        hideLoading();
+        
+        if (capturedImages.length === 0) {
+          showToast('Geen geldige afbeeldingen geselecteerd', 'error');
+          return;
+        }
+        
+        // Update UI with image previews
+        displayImagePreviews();
+        
+        // Show image count
+        document.getElementById('imageCount').style.display = 'block';
+        document.getElementById('imageCountText').textContent = capturedImages.length;
+        
+        processBtn.disabled = false;
+      });
+
+      processBtn.addEventListener('click', processImage);
+    }
+
+    // Display image preview gallery
+    function displayImagePreviews() {
+      const captureArea = document.getElementById('captureArea');
+      captureArea.innerHTML = '';
+      captureArea.classList.add('has-image');
+      
+      capturedImages.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imgContainer = document.createElement('div');
+          imgContainer.style.cssText = 'position: relative; display: inline-block; margin: 5px;';
+          
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.style.cssText = 'width: 150px; height: 150px; object-fit: cover; border: 2px solid #4CAF50; border-radius: 8px;';
+          img.alt = `Foto ${index + 1}`;
+          
+          const label = document.createElement('div');
+          label.textContent = `#${index + 1}`;
+          label.style.cssText = 'position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+          
+          // Delete button
+          const deleteBtn = document.createElement('button');
+          deleteBtn.textContent = '×';
+          deleteBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: red; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 1;';
+          deleteBtn.onclick = () => removeImage(index);
+          
+          imgContainer.appendChild(img);
+          imgContainer.appendChild(label);
+          imgContainer.appendChild(deleteBtn);
+          captureArea.appendChild(imgContainer);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Remove image from array
+    function removeImage(index) {
+      capturedImages.splice(index, 1);
+      displayImagePreviews();
+      
+      document.getElementById('imageCountText').textContent = capturedImages.length;
+      document.getElementById('processBtn').disabled = capturedImages.length === 0;
+      
+      if (capturedImages.length === 0) {
+        document.getElementById('imageCount').style.display = 'none';
+        document.getElementById('captureArea').classList.remove('has-image');
+      }
+    }
+
+    // Convert HEIC to JPEG - Server-side only (reliable)
+    async function convertHEICtoJPEG(file) {
+      // Only process HEIC/HEIF files
+      if (!file.name.match(/\.(heic|heif)$/i) && 
+          file.type !== 'image/heic' && 
+          file.type !== 'image/heif') {
+        return file;
+      }
+      
+      // Method 1: heic2any library (primary method)
+      if (typeof heic2any !== 'undefined') {
+        try {
+          console.log('🔄 Method 1: Converting with heic2any v0.0.4...');
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.9
+          });
+          
+          console.log('✅ heic2any conversion successful');
+          
+          return new File(
+            [convertedBlob], 
+            file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+            { type: 'image/jpeg' }
+          );
+        } catch (error) {
+          console.warn('⚠ heic2any failed:', error.message);
+          // Continue to Method 2
+        }
+      }
+      
+      // Method 2: Browser native rendering (Safari/Edge fallback)
+      try {
+        console.log('🔄 Method 2: Native browser conversion...');
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+          setTimeout(() => reject(new Error('Image load timeout')), 5000); // 5s timeout
+        });
+        
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 4096;
+        const scale = Math.min(1, MAX_SIZE / Math.max(img.width, img.height));
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        
+        const jpegBlob = await new Promise(resolve => 
+          canvas.toBlob(resolve, 'image/jpeg', 0.9)
+        );
+        
+        console.log('✅ Native browser conversion successful');
+        
+        return new File(
+          [jpegBlob], 
+          file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+          { type: 'image/jpeg' }
+        );
+      } catch (error) {
+        console.warn('⚠ Native conversion failed:', error.message);
+        // Continue to Method 3 (server fallback)
+      }
+      
+      // Method 3: Fallback to server Sharp conversion
+      console.log('⚠️ Client conversion unavailable, uploading original HEIC');
+      console.log('💡 Server will attempt conversion (may fail if Sharp lacks codec)');
+      return file;
+    }
+
+    // Process Image with AI
+    async function processImage() {
+      if (capturedImages.length === 0) return;
+
+      const count = capturedImages.length;
+      showLoading(`${count} foto${count > 1 ? '\'s' : ''} analyseren met AI...`);
+
+      const formData = new FormData();
+      capturedImages.forEach((image, index) => {
+        formData.append('images', image, `image-${index + 1}.jpg`);
+      });
+
+      try {
+        const response = await fetch(getApiUrl('/api/scan'), {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+          // Check if there's a suggestion field
+          if (result.suggestion) {
+            throw new Error(`${result.error}\n\n💡 ${result.suggestion}`);
+          }
+          throw new Error(result.error);
+        }
+
+        scanResult = result;
+        displayResults(result);
+        goToStep(2);
+        
+        // Show success message with metadata
+        if (result.metadata) {
+          const msg = `${result.metadata.uniqueContacts} unieke deelnemers gevonden uit ${result.metadata.totalImages} ${result.metadata.totalImages === 1 ? 'pagina' : 'pagina\'s'}`;
+          showToast(msg, 'success');
+        } else if (count === 1) {
+          showToast('Aanwezigheidslijst succesvol verwerkt!', 'success');
+        } else {
+          showToast(`${count} foto's succesvol verwerkt! ${result.summary.totaal} deelnemers gevonden.`, 'success');
+        }
+
+      } catch (error) {
+        showToast('Fout: ' + error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Display Results
+    function displayResults(result) {
+      const { data, summary } = result;
+
+      document.getElementById('totalCount').textContent = summary.totaal;
+      document.getElementById('presentCount').textContent = summary.aanwezig;
+      document.getElementById('absentCount').textContent = summary.totaal - summary.aanwezig;
+      document.getElementById('trainingName').textContent = data.training_info?.titel || 'Onbekend';
+
+      const tbody = document.getElementById('participantsBody');
+      tbody.innerHTML = '';
+
+      if (data.deelnemers) {
+        data.deelnemers.forEach(p => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${p.naam || '-'}</td>
+            <td>${p.bedrijf || '-'}</td>
+            <td>
+              <span class="status-badge ${p.aanwezig ? 'present' : 'absent'}">
+                ${p.aanwezig ? '✓ Aanwezig' : '✗ Afwezig'}
+              </span>
+            </td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+    }
+
+    // Contacts Management
+    async function loadContacts() {
+      try {
+        const response = await fetch(getApiUrl('/api/contacts'));
+        contacts = await response.json();
+        renderContacts();
+        renderSettingsContacts();
+      } catch (error) {
+        console.error('Error loading contacts:', error);
+      }
+    }
+
+    function renderContacts() {
+      const container = document.getElementById('contactsList');
+      container.innerHTML = '';
+
+      contacts.forEach(contact => {
+        const div = document.createElement('div');
+        div.className = `contact-item ${selectedContacts.has(contact.id) ? 'selected' : ''}`;
+        div.onclick = () => toggleContact(contact.id);
+        div.innerHTML = `
+          <input type="checkbox" ${selectedContacts.has(contact.id) ? 'checked' : ''} onclick="event.stopPropagation(); toggleContact(${contact.id})">
+          <div class="contact-info">
+            <div class="contact-name">${contact.name}</div>
+            <div class="contact-email">${contact.email}</div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function renderSettingsContacts() {
+      const container = document.getElementById('settingsContactsList');
+      container.innerHTML = '';
+
+      contacts.forEach(contact => {
+        const div = document.createElement('div');
+        div.className = 'contact-item';
+        div.innerHTML = `
+          <div class="contact-info">
+            <div class="contact-name">${contact.name}</div>
+            <div class="contact-email">${contact.email}</div>
+          </div>
+          <div class="contact-delete" onclick="deleteContact(${contact.id})">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function toggleContact(id) {
+      if (selectedContacts.has(id)) {
+        selectedContacts.delete(id);
+      } else {
+        selectedContacts.add(id);
+      }
+      renderContacts();
+    }
+
+    function toggleAddContact() {
+      document.getElementById('addContactForm').classList.toggle('visible');
+    }
+
+    async function addContact() {
+      const name = document.getElementById('newContactName').value.trim();
+      const email = document.getElementById('newContactEmail').value.trim();
+
+      if (!name || !email) {
+        showToast('Vul naam en email in', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(getApiUrl('/api/contacts'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email })
+        });
+
+        if (response.ok) {
+          document.getElementById('newContactName').value = '';
+          document.getElementById('newContactEmail').value = '';
+          document.getElementById('addContactForm').classList.remove('visible');
+          await loadContacts();
+          showToast('Contact toegevoegd', 'success');
+        }
+      } catch (error) {
+        showToast('Kon contact niet toevoegen', 'error');
+      }
+    }
+
+    async function addContactFromSettings() {
+      const name = document.getElementById('settingsNewName').value.trim();
+      const email = document.getElementById('settingsNewEmail').value.trim();
+
+      if (!name || !email) {
+        showToast('Vul naam en email in', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch(getApiUrl('/api/contacts'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email })
+        });
+
+        if (response.ok) {
+          document.getElementById('settingsNewName').value = '';
+          document.getElementById('settingsNewEmail').value = '';
+          await loadContacts();
+          showToast('Contact toegevoegd', 'success');
+        }
+      } catch (error) {
+        showToast('Kon contact niet toevoegen', 'error');
+      }
+    }
+
+    async function deleteContact(id) {
+      if (!confirm('Weet je zeker dat je dit contact wilt verwijderen?')) return;
+
+      try {
+        await fetch(getApiUrl(`/api/contacts/${id}`), { method: 'DELETE' });
+        selectedContacts.delete(id);
+        await loadContacts();
+        showToast('Contact verwijderd', 'success');
+      } catch (error) {
+        showToast('Kon contact niet verwijderen', 'error');
+      }
+    }
+
+    // Send Email
+    async function sendEmail() {
+      if (selectedContacts.size === 0) {
+        showToast('Selecteer minimaal één ontvanger', 'error');
+        return;
+      }
+
+      if (!scanResult) {
+        showToast('Geen scan resultaat beschikbaar', 'error');
+        return;
+      }
+
+      showLoading('Email versturen...');
+
+      try {
+        const response = await fetch(getApiUrl('/api/send'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contactIds: Array.from(selectedContacts),
+            csv: scanResult.csv,
+            pdf: scanResult.pdf,
+            summary: scanResult.summary,
+            customMessage: document.getElementById('customMessage').value
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showToast('Email succesvol verstuurd! ✓', 'success');
+        } else {
+          showToast(result.message || 'Er ging iets mis', 'error');
+        }
+      } catch (error) {
+        showToast('Kon email niet versturen: ' + error.message, 'error');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Navigation
+    function goToStep(step) {
+      currentStep = step;
+      updateSteps();
+      showSection(step);
+    }
+
+    function updateSteps() {
+      document.querySelectorAll('.step').forEach(stepEl => {
+        const stepNum = parseInt(stepEl.dataset.step);
+        stepEl.classList.remove('active', 'completed');
+
+        if (stepNum < currentStep) {
+          stepEl.classList.add('completed');
+        } else if (stepNum === currentStep) {
+          stepEl.classList.add('active');
+        }
+      });
+    }
+
+    function showSection(step) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+
+      const sectionMap = {
+        1: 'section-scan',
+        2: 'section-results',
+        3: 'section-send'
+      };
+
+      const sectionId = sectionMap[step];
+      if (sectionId) {
+        document.getElementById(sectionId).classList.add('visible');
+      }
+    }
+
+    function toggleSettings() {
+      const settingsSection = document.getElementById('section-settings');
+      const isVisible = settingsSection.classList.contains('visible');
+
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('visible'));
+
+      if (isVisible) {
+        showSection(currentStep);
+      } else {
+        settingsSection.classList.add('visible');
+      }
+    }
+
+    function resetAll() {
+      scanResult = null;
+      capturedImage = null;
+      selectedContacts.clear();
+
+      const captureArea = document.getElementById('captureArea');
+      captureArea.innerHTML = `
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z"></path>
+          <path d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z"></path>
+        </svg>
+        <p>Tik om foto te maken of bestand te kiezen</p>
+      `;
+      captureArea.classList.remove('has-image');
+      document.getElementById('processBtn').disabled = true;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('customMessage').value = '';
+
+      renderContacts();
+      goToStep(1);
+    }
+
+    // UI Helpers
+    function showLoading(text = 'Verwerken...') {
+      document.getElementById('loadingText').textContent = text;
+      document.getElementById('loadingOverlay').classList.add('visible');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').classList.remove('visible');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type} visible`;
+
+      setTimeout(() => {
+        toast.classList.remove('visible');
+      }, 3000);
+    }
+
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register(BASE_PATH + '/sw.js', { 
+        scope: BASE_PATH + '/' 
+      }).then(reg => {
+        console.log('✓ ServiceWorker registered:', reg.scope);
+      }).catch(err => {
+        console.log('✗ ServiceWorker registration failed:', err);
+      });
+    }
+  </script>
+</body>
+</html>
