@@ -10,7 +10,7 @@
   <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- HEIC to JPEG conversion library -->
-  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.6/dist/heic2any.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -965,7 +965,7 @@
       // Method 1: heic2any library (primary method)
       if (typeof heic2any !== 'undefined') {
         try {
-          console.log('🔄 Method 1: Converting with heic2any v0.0.6...');
+          console.log('🔄 Method 1: Converting with heic2any v0.0.4...');
           const convertedBlob = await heic2any({
             blob: file,
             toType: 'image/jpeg',
