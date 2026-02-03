@@ -19,7 +19,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const nodemailer = require('nodemailer');
 const { PDFDocument } = require('pdf-lib');
 const sharp = require('sharp');
 
@@ -27,7 +26,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // File upload config
@@ -57,16 +57,16 @@ if (!fs.existsSync(CONTACTS_FILE)) {
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Email transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
+// Initialize email client (Microsoft Graph API)
+let graphClient;
+try {
+  const GraphEmailClient = require('./graphClient');
+  graphClient = new GraphEmailClient();
+  console.log('✓ Microsoft Graph API client initialized');
+} catch (error) {
+  console.warn('⚠ Graph API not available:', error.message);
+  console.warn('Email sending will use alternative method if configured');
+}
 
 // ============ CONTACTS API ============
 
@@ -275,6 +275,10 @@ app.post('/api/send', async (req, res) => {
       return res.status(400).json({ error: 'Selecteer minimaal één contactpersoon' });
     }
 
+    if (!graphClient) {
+      return res.status(500).json({ error: 'Email service niet beschikbaar. Controleer server configuratie.' });
+    }
+
     const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
     const selectedContacts = contacts.filter(c => contactIds.includes(c.id));
 
@@ -291,11 +295,10 @@ app.post('/api/send', async (req, res) => {
     const results = [];
     for (const contact of selectedContacts) {
       try {
-        await transporter.sendMail({
-          from: `"Steff - The House of Coaching" <${process.env.SMTP_USER}>`,
+        await graphClient.sendEmail({
           to: contact.email,
           subject: `Aanwezigheidslijst: ${summary?.training || 'Training'} - ${dateStr}`,
-          html: `
+          htmlBody: `
             <p>Beste ${contact.name},</p>
 
             <p>Hierbij de aanwezigheidslijst van de training.</p>
@@ -316,7 +319,7 @@ app.post('/api/send', async (req, res) => {
             </ul>
 
             <p>Met vriendelijke groeten,</p>
-            <p>Steff<br>The House of Coaching</p>
+            <p>${process.env.SENDER_NAME || 'Steff'}<br>The House of Coaching</p>
           `,
           attachments: [
             {
@@ -365,4 +368,10 @@ app.listen(PORT, () => {
   ║  Server draait op: http://localhost:${PORT}  ║
   ╚═══════════════════════════════════════════╝
   `);
+  console.log('Environment:', {
+    geminiConfigured: !!process.env.GEMINI_API_KEY,
+    graphConfigured: !!graphClient,
+    port: PORT
+  });
 });
+
