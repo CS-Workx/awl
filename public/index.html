@@ -9,6 +9,8 @@
   <title>AWL Scanner</title>
   <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- HEIC to JPEG conversion library -->
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -953,10 +955,44 @@
 
     // Convert HEIC to JPEG - Server-side only (reliable)
     async function convertHEICtoJPEG(file) {
-      // heic2any is unreliable (format support issues)
-      // Upload original HEIC → server Sharp conversion is 100% betrouwbaar
-      console.log('📤 Uploading HEIC for server-side conversion (Sharp)');
-      return file;
+      // Only process HEIC/HEIF files
+      if (!file.name.match(/\.(heic|heif)$/i) && 
+          file.type !== 'image/heic' && 
+          file.type !== 'image/heif') {
+        return file;
+      }
+      
+      console.log('🔄 Converting HEIC with heic2any library...');
+      
+      // Check if heic2any is loaded
+      if (typeof heic2any === 'undefined') {
+        console.warn('⚠ heic2any not loaded, uploading original HEIC to server');
+        return file;
+      }
+      
+      try {
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.9
+        });
+        
+        console.log('✅ Client-side HEIC conversion successful');
+        
+        // Create new File object with .jpg extension
+        const jpegFile = new File(
+          [convertedBlob], 
+          file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+          { type: 'image/jpeg' }
+        );
+        
+        return jpegFile;
+        
+      } catch (error) {
+        console.warn('⚠ Client-side HEIC conversion failed, uploading original:', error.message);
+        // Fallback: let server try with Sharp
+        return file;
+      }
     }
 
     // Process Image with AI
@@ -980,6 +1016,10 @@
         const result = await response.json();
 
         if (result.error) {
+          // Check if there's a suggestion field
+          if (result.suggestion) {
+            throw new Error(`${result.error}\n\n💡 ${result.suggestion}`);
+          }
           throw new Error(result.error);
         }
 

@@ -214,8 +214,24 @@ apiRouter.post('/api/scan', upload.array('images', 5), async (req, res) => {
           const imageInfo = await sharp(processedImageBuffer).metadata();
           console.log(`Image ${i + 1} optimized:`, imageInfo.width, 'x', imageInfo.height, 'JPEG');
         } catch (conversionError) {
-          console.error(`Image ${i + 1} conversion error:`, conversionError);
-          continue; // Skip this image, continue with next
+          console.error(`Image ${i + 1} conversion error:`, conversionError.message);
+          
+          // Special handling for HEIC files
+          if (file.mimetype === 'image/heic' || file.mimetype === 'image/heif' || 
+              file.originalname.match(/\.(heic|heif)$/i)) {
+            console.error('HEIC processing failed - libheif codec not available on server');
+            
+            // If this is the only image, return specific error
+            if (req.files.length === 1) {
+              return res.status(400).json({
+                error: 'HEIC conversie niet ondersteund op deze server',
+                suggestion: 'Gebruik een moderne browser (Chrome/Edge/Safari) die HEIC automatisch converteert, of converteer de foto eerst naar JPEG'
+              });
+            }
+          }
+          
+          // Continue with other images if multi-upload
+          continue;
         }
 
         // 2. Process image with Gemini Vision
@@ -297,6 +313,22 @@ Regels:
 
     // Check if we got any results
     if (allParsedData.length === 0) {
+      // Detect if all files were HEIC
+      const allHEIC = req.files.every(f => 
+        f.mimetype === 'image/heic' || 
+        f.mimetype === 'image/heif' || 
+        f.originalname.match(/\.(heic|heif)$/i)
+      );
+      
+      if (allHEIC) {
+        return res.status(400).json({ 
+          error: 'HEIC bestanden konden niet verwerkt worden',
+          suggestion: 'Gebruik een moderne browser (Chrome/Edge/Safari) voor automatische conversie, of converteer de foto\'s naar JPEG',
+          processed: processedImages.length,
+          total: req.files.length
+        });
+      }
+      
       return res.status(500).json({ 
         error: 'Geen gegevens kunnen extraheren uit de afbeeldingen',
         processed: processedImages.length,
