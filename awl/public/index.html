@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#4F46E5">
+  <meta name="theme-color" content="#ea302d">
   <title>AWL Scanner</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- HEIC to JPEG conversion library -->
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -18,11 +19,40 @@
     }
 
     :root {
-      --primary: #4F46E5;
-      --primary-dark: #4338CA;
+      /* Syntra Bizz Brand Colors */
+      --color-theme-accent: #ea302d;
+      --color-button-primary: #ea302d;
+      --color-button-primary--hover: #d02a27;
+      --color-button-secondary: #30bab0;
+      --color-button-secondary--hover: #45d0c6;
+      --color-text-title: #303236;
+      --color-text-body: #606170;
+      --color-text-secondary: #9397a4;
+      --color-black: #1a1b21;
+      --color-white: #fff;
+      --color-gray: #eff2f5;
+      --color-button-disabled: #d0d0d9;
+      
+      /* Map to existing variable names for backwards compatibility */
+      --primary: var(--color-theme-accent);
+      --primary-dark: var(--color-button-primary--hover);
+      --secondary: var(--color-button-secondary);
+      --secondary-dark: var(--color-button-secondary--hover);
       --success: #10B981;
       --warning: #F59E0B;
-      --danger: #EF4444;
+      --danger: var(--color-theme-accent);
+      
+      /* Light mode colors */
+      --bg-primary: var(--color-white);
+      --bg-secondary: var(--color-gray);
+      --bg-tertiary: #F3F4F6;
+      --text-primary: var(--color-text-title);
+      --text-secondary: var(--color-text-body);
+      --text-tertiary: var(--color-text-secondary);
+      --border-color: #E5E7EB;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --card-bg: var(--color-white);
+      
       --gray-50: #F9FAFB;
       --gray-100: #F3F4F6;
       --gray-200: #E5E7EB;
@@ -32,10 +62,38 @@
       --gray-900: #111827;
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Dark mode colors */
+        --bg-primary: var(--color-black);
+        --bg-secondary: #242530;
+        --bg-tertiary: #2d2e3a;
+        --text-primary: var(--color-white);
+        --text-secondary: #b8bac4;
+        --text-tertiary: var(--color-text-secondary);
+        --border-color: #3a3b47;
+        --shadow: rgba(0, 0, 0, 0.4);
+        --card-bg: #242530;
+        
+        /* Keep brand colors consistent in dark mode */
+        --color-theme-accent: #ea302d;
+        --color-button-primary: #ea302d;
+        --color-button-secondary: #30bab0;
+        
+        --gray-50: #374151;
+        --gray-100: #4B5563;
+        --gray-200: #6B7280;
+        --gray-300: #9CA3AF;
+        --gray-500: #D1D5DB;
+        --gray-700: #E5E7EB;
+        --gray-900: #F9FAFB;
+      }
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--gray-50);
-      color: var(--gray-900);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       min-height: 100vh;
       padding-bottom: env(safe-area-inset-bottom);
     }
@@ -75,17 +133,18 @@
 
     /* Cards */
     .card {
-      background: white;
+      background: var(--card-bg);
       border-radius: 1rem;
       padding: 1.5rem;
       margin-bottom: 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px var(--shadow);
+      border: 1px solid var(--border-color);
     }
 
     .card h2 {
       font-size: 1rem;
       font-weight: 600;
-      color: var(--gray-700);
+      color: var(--text-primary);
       margin-bottom: 1rem;
       display: flex;
       align-items: center;
@@ -166,7 +225,7 @@
 
     .capture-area:hover {
       border-color: var(--primary);
-      background: white;
+      background: var(--bg-tertiary);
     }
 
     .capture-area.has-image {
@@ -223,8 +282,24 @@
     }
 
     .btn-primary:disabled {
-      background: var(--gray-300);
+      background: var(--color-button-disabled);
       cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--secondary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary:disabled {
+      background: var(--color-button-disabled);
+      cursor: not-allowed;
+      transform: none;
     }
 
     .btn-success {
@@ -508,18 +583,22 @@
     }
 
     /* Settings toggle */
-    .settings-toggle {
-      position: absolute;
-      right: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      padding: 0.5rem;
+    /* Icon buttons in header */
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: white;
       cursor: pointer;
-      opacity: 0.8;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .settings-toggle:hover {
-      opacity: 1;
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.15);
     }
 
     header {
@@ -544,11 +623,26 @@
       </h1>
       <p>Scan, digitaliseer & verstuur aanwezigheidslijsten</p>
     </div>
-    <div class="settings-toggle" onclick="toggleSettings()">
-      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-      </svg>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <!-- Herstart button (hidden on step 1) -->
+      <button 
+        class="icon-btn" 
+        id="restartBtn"
+        onclick="confirmRestart()" 
+        title="Herstart"
+        style="display: none;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
+      
+      <!-- Settings button -->
+      <button class="icon-btn" onclick="toggleSettings()" title="Instellingen">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -589,7 +683,28 @@
           <p>Tik om foto te maken of bestand te kiezen</p>
         </div>
 
-        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <!-- Warning banner for image limit -->
+        <div style="background: var(--warning); background-opacity: 0.1; border: 1px solid var(--warning); padding: 12px; margin: 15px 0; border-radius: 8px; font-size: 14px; color: var(--text-primary);">
+          ⚠️ <strong>Let op:</strong> Maximum 3 foto's per keer aanbevolen voor optimale prestaties. Voor meer foto's: verwerk in meerdere batches.
+        </div>
+
+        <input type="file" id="fileInput" accept="image/*" multiple capture="environment">
+
+        <div id="imageCount" style="display:none; margin-top: 10px; text-align: center; color: var(--text-secondary);">
+          <strong>Geselecteerd:</strong> <span id="imageCountText">0</span> foto's
+        </div>
+
+        <!-- Extra foto's button -->
+        <button 
+          class="btn btn-secondary" 
+          id="addMoreBtn"
+          onclick="document.getElementById('fileInput').click()"
+          style="display: none; margin-top: 0.5rem;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 4v16m8-8H4" />
+          </svg>
+          Extra foto's toevoegen
+        </button>
 
         <button class="btn btn-primary" id="processBtn" disabled style="margin-top: 1rem;">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -747,15 +862,51 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    // State
+    // ============ BASE_PATH AUTO-DETECTION ============
+    // Detect base path voor subfolder deployment (bijv. /awl)
+    const BASE_PATH = (() => {
+      const path = window.location.pathname;
+      // Match eerste segment: /awl/, /awl/index.html, etc.
+      const match = path.match(/^\/([^\/]+)/);
+      // Als we in een subfolder zitten (niet root en niet een file)
+      if (match && match[1] && match[1] !== 'index.html') {
+        return '/' + match[1];
+      }
+      return '';
+    })();
+
+    // Helper functie voor API URLs
+    function getApiUrl(path) {
+      return BASE_PATH + path;
+    }
+
+    console.log('🔧 BASE_PATH detected:', BASE_PATH || '/ (root)');
+
+    // ============ STATE ============
     let currentStep = 1;
     let contacts = [];
     let selectedContacts = new Set();
     let scanResult = null;
-    let capturedImage = null;
+    let capturedImages = []; // Array to hold multiple images
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+      // Inject manifest en icon links met BASE_PATH
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = BASE_PATH + '/manifest.json';
+      document.head.appendChild(manifestLink);
+
+      const iconLink = document.createElement('link');
+      iconLink.rel = 'apple-touch-icon';
+      iconLink.href = BASE_PATH + '/icon-192.png';
+      document.head.appendChild(iconLink);
+
+      console.log('📱 PWA assets loaded:', {
+        manifest: manifestLink.href,
+        icon: iconLink.href
+      });
+
       loadContacts();
       setupFileInput();
     });
@@ -766,34 +917,270 @@
       const captureArea = document.getElementById('captureArea');
       const processBtn = document.getElementById('processBtn');
 
-      fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          capturedImage = file;
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            captureArea.innerHTML = `<img src="${e.target.result}" alt="Gescande afbeelding">`;
-            captureArea.classList.add('has-image');
-            processBtn.disabled = false;
-          };
-          reader.readAsDataURL(file);
+      fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        // Check total count (existing + new)
+        const totalImages = capturedImages.length + files.length;
+        
+        // Soft warning for > 3 total images
+        if (totalImages > 3) {
+          showToast('⚠️ Meer dan 3 foto\'s kan langer duren. Voor beste prestaties: gebruik max 3 foto\'s per keer.', 'warning');
         }
+        
+        // Hard limit at 5 images (technical constraint)
+        if (totalImages > 5) {
+          showToast(`Maximum 5 foto's toegestaan. Je hebt al ${capturedImages.length} foto's geselecteerd.`, 'error');
+          fileInput.value = '';
+          return;
+        }
+        
+        const verb = capturedImages.length > 0 ? 'toevoegen' : 'verwerken';
+        showLoading(`${files.length} foto${files.length > 1 ? '\'s' : ''} ${verb}...`);
+        
+        // DON'T clear capturedImages - append mode
+        // capturedImages = [];  // <- REMOVED
+        
+        // Process each file (HEIC conversion if needed)
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          
+          // Convert HEIC if needed
+          if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic')) {
+            try {
+              const convertedFile = await convertHEICtoJPEG(file);
+              capturedImages.push(convertedFile);
+            } catch (error) {
+              console.error(`HEIC conversion failed for image ${i+1}:`, error);
+              showToast(`Foto ${i+1} kon niet geconverteerd worden`, 'error');
+            }
+          } else {
+            capturedImages.push(file);
+          }
+        }
+        
+        hideLoading();
+        
+        if (capturedImages.length === 0) {
+          showToast('Geen geldige afbeeldingen geselecteerd', 'error');
+          return;
+        }
+        
+        // Update UI with image previews
+        displayImagePreviews();
+        
+        // Show image count
+        document.getElementById('imageCount').style.display = 'block';
+        document.getElementById('imageCountText').textContent = capturedImages.length;
+        
+        processBtn.disabled = false;
+        
+        // Reset file input to allow same file selection again
+        fileInput.value = '';
       });
 
       processBtn.addEventListener('click', processImage);
     }
 
+    // Display image preview gallery
+    function displayImagePreviews() {
+      const captureArea = document.getElementById('captureArea');
+      captureArea.innerHTML = '';
+      captureArea.classList.add('has-image');
+      
+      capturedImages.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const imgContainer = document.createElement('div');
+          imgContainer.style.cssText = 'position: relative; display: inline-block; margin: 5px;';
+          
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.style.cssText = 'width: 150px; height: 150px; object-fit: cover; border: 2px solid var(--primary); border-radius: 8px;';
+          img.alt = `Foto ${index + 1}`;
+          
+          const label = document.createElement('div');
+          label.textContent = `#${index + 1}`;
+          label.style.cssText = 'position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.7); color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;';
+          
+          // Delete button
+          const deleteBtn = document.createElement('button');
+          deleteBtn.innerHTML = `
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          `;
+          deleteBtn.style.cssText = `
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+          `;
+          
+          // Show delete button on hover
+          imgContainer.addEventListener('mouseenter', () => deleteBtn.style.opacity = '1');
+          imgContainer.addEventListener('mouseleave', () => deleteBtn.style.opacity = '0');
+          // Always show on mobile (touch devices)
+          if ('ontouchstart' in window) {
+            deleteBtn.style.opacity = '0.8';
+          }
+          
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeImage(index);
+          });
+          
+          imgContainer.appendChild(img);
+          imgContainer.appendChild(label);
+          imgContainer.appendChild(deleteBtn);
+          captureArea.appendChild(imgContainer);
+        };
+        reader.readAsDataURL(file);
+      });
+      
+      // Show/hide "Extra foto's" button
+      const addMoreBtn = document.getElementById('addMoreBtn');
+      if (addMoreBtn) {
+        // Show button if images exist AND under limit
+        addMoreBtn.style.display = (capturedImages.length > 0 && capturedImages.length < 5) 
+          ? 'block' 
+          : 'none';
+        
+        // Update button text with count
+        if (capturedImages.length > 0) {
+          const remaining = 5 - capturedImages.length;
+          const btnText = remaining > 0 
+            ? `Extra foto's toevoegen (nog ${remaining} mogelijk)`
+            : 'Maximum bereikt (5 foto\'s)';
+          
+          addMoreBtn.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 4v16m8-8H4" />
+            </svg>
+            ${btnText}
+          `;
+          addMoreBtn.disabled = (remaining === 0);
+        }
+      }
+    }
+
+    // Remove image from array
+    function removeImage(index) {
+      capturedImages.splice(index, 1);
+      displayImagePreviews();
+      
+      document.getElementById('imageCountText').textContent = capturedImages.length;
+      document.getElementById('processBtn').disabled = capturedImages.length === 0;
+      
+      if (capturedImages.length === 0) {
+        document.getElementById('imageCount').style.display = 'none';
+        document.getElementById('captureArea').classList.remove('has-image');
+      }
+    }
+
+    // Convert HEIC to JPEG - Server-side only (reliable)
+    async function convertHEICtoJPEG(file) {
+      // Only process HEIC/HEIF files
+      if (!file.name.match(/\.(heic|heif)$/i) && 
+          file.type !== 'image/heic' && 
+          file.type !== 'image/heif') {
+        return file;
+      }
+      
+      // Method 1: heic2any library (primary method)
+      if (typeof heic2any !== 'undefined') {
+        try {
+          console.log('🔄 Method 1: Converting with heic2any v0.0.4...');
+          const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.9
+          });
+          
+          console.log('✅ heic2any conversion successful');
+          
+          return new File(
+            [convertedBlob], 
+            file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+            { type: 'image/jpeg' }
+          );
+        } catch (error) {
+          console.warn('⚠ heic2any failed:', error.message);
+          // Continue to Method 2
+        }
+      }
+      
+      // Method 2: Browser native rendering (Safari/Edge fallback)
+      try {
+        console.log('🔄 Method 2: Native browser conversion...');
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+          img.src = url;
+          setTimeout(() => reject(new Error('Image load timeout')), 5000); // 5s timeout
+        });
+        
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 4096;
+        const scale = Math.min(1, MAX_SIZE / Math.max(img.width, img.height));
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        
+        const jpegBlob = await new Promise(resolve => 
+          canvas.toBlob(resolve, 'image/jpeg', 0.9)
+        );
+        
+        console.log('✅ Native browser conversion successful');
+        
+        return new File(
+          [jpegBlob], 
+          file.name.replace(/\.(heic|heif)$/i, '.jpg'), 
+          { type: 'image/jpeg' }
+        );
+      } catch (error) {
+        console.warn('⚠ Native conversion failed:', error.message);
+        // Continue to Method 3 (server fallback)
+      }
+      
+      // Method 3: Fallback to server Sharp conversion
+      console.log('⚠️ Client conversion unavailable, uploading original HEIC');
+      console.log('💡 Server will attempt conversion (may fail if Sharp lacks codec)');
+      return file;
+    }
+
     // Process Image with AI
     async function processImage() {
-      if (!capturedImage) return;
+      if (capturedImages.length === 0) return;
 
-      showLoading('Analyseren met AI...');
+      const count = capturedImages.length;
+      showLoading(`${count} foto${count > 1 ? '\'s' : ''} analyseren met AI...`);
 
       const formData = new FormData();
-      formData.append('image', capturedImage);
+      capturedImages.forEach((image, index) => {
+        formData.append('images', image, `image-${index + 1}.jpg`);
+      });
 
       try {
-        const response = await fetch('/api/scan', {
+        const response = await fetch(getApiUrl('/api/scan'), {
           method: 'POST',
           body: formData
         });
@@ -801,13 +1188,26 @@
         const result = await response.json();
 
         if (result.error) {
+          // Check if there's a suggestion field
+          if (result.suggestion) {
+            throw new Error(`${result.error}\n\n💡 ${result.suggestion}`);
+          }
           throw new Error(result.error);
         }
 
         scanResult = result;
         displayResults(result);
         goToStep(2);
-        showToast('Aanwezigheidslijst succesvol verwerkt!', 'success');
+        
+        // Show success message with metadata
+        if (result.metadata) {
+          const msg = `${result.metadata.uniqueContacts} unieke deelnemers gevonden uit ${result.metadata.totalImages} ${result.metadata.totalImages === 1 ? 'pagina' : 'pagina\'s'}`;
+          showToast(msg, 'success');
+        } else if (count === 1) {
+          showToast('Aanwezigheidslijst succesvol verwerkt!', 'success');
+        } else {
+          showToast(`${count} foto's succesvol verwerkt! ${result.summary.totaal} deelnemers gevonden.`, 'success');
+        }
 
       } catch (error) {
         showToast('Fout: ' + error.message, 'error');
@@ -848,7 +1248,7 @@
     // Contacts Management
     async function loadContacts() {
       try {
-        const response = await fetch('/api/contacts');
+        const response = await fetch(getApiUrl('/api/contacts'));
         contacts = await response.json();
         renderContacts();
         renderSettingsContacts();
@@ -922,7 +1322,7 @@
       }
 
       try {
-        const response = await fetch('/api/contacts', {
+        const response = await fetch(getApiUrl('/api/contacts'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email })
@@ -950,7 +1350,7 @@
       }
 
       try {
-        const response = await fetch('/api/contacts', {
+        const response = await fetch(getApiUrl('/api/contacts'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email })
@@ -971,7 +1371,7 @@
       if (!confirm('Weet je zeker dat je dit contact wilt verwijderen?')) return;
 
       try {
-        await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+        await fetch(getApiUrl(`/api/contacts/${id}`), { method: 'DELETE' });
         selectedContacts.delete(id);
         await loadContacts();
         showToast('Contact verwijderd', 'success');
@@ -995,7 +1395,7 @@
       showLoading('Email versturen...');
 
       try {
-        const response = await fetch('/api/send', {
+        const response = await fetch(getApiUrl('/api/send'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1026,6 +1426,12 @@
       currentStep = step;
       updateSteps();
       showSection(step);
+      
+      // Show/hide restart button (only visible after step 1)
+      const restartBtn = document.getElementById('restartBtn');
+      if (restartBtn) {
+        restartBtn.style.display = (step > 1) ? 'block' : 'none';
+      }
     }
 
     function updateSteps() {
@@ -1091,6 +1497,26 @@
       goToStep(1);
     }
 
+    // Restart with confirmation
+    function confirmRestart() {
+      // Only show confirmation if user has data (not on step 1)
+      if (currentStep === 1 && !scanResult) {
+        resetAll();
+        return;
+      }
+      
+      const message = currentStep === 2 
+        ? 'Weet je zeker dat je opnieuw wilt beginnen? De scan resultaten gaan verloren.'
+        : currentStep === 3
+        ? 'Weet je zeker dat je opnieuw wilt beginnen? Niet-verstuurde gegevens gaan verloren.'
+        : 'Weet je zeker dat je opnieuw wilt beginnen?';
+      
+      if (confirm(message)) {
+        resetAll();
+        showToast('Opnieuw gestart', 'info');
+      }
+    }
+
     // UI Helpers
     function showLoading(text = 'Verwerken...') {
       document.getElementById('loadingText').textContent = text;
@@ -1113,8 +1539,12 @@
 
     // Service Worker Registration
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(err => {
-        console.log('ServiceWorker registration failed:', err);
+      navigator.serviceWorker.register(BASE_PATH + '/sw.js', { 
+        scope: BASE_PATH + '/' 
+      }).then(reg => {
+        console.log('✓ ServiceWorker registered:', reg.scope);
+      }).catch(err => {
+        console.log('✗ ServiceWorker registration failed:', err);
       });
     }
   </script>

@@ -1,11 +1,11 @@
 {
   "name": "AWL Scanner",
   "short_name": "AWL Scanner",
-  "description": "Scan, digitaliseer en verstuur aanwezigheidslijsten",
+  "description": "Scan, digitaliseer en verstuur aanwezigheidslijsten met AI",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
+  "theme_color": "#ea302d",
   "orientation": "portrait",
   "icons": [
     {
@@ -20,5 +20,7 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["productivity", "education", "utilities"],
+  "screenshots": []
 }
