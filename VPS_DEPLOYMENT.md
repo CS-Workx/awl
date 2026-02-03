@@ -127,6 +127,11 @@ Voeg toe:
 # Production port (Nginx forwardt naar deze port)
 PORT=3001
 
+# Base Path (voor subfolder deployment zoals /awl)
+# Voor https://tools.superworker.be/awl gebruik: BASE_PATH=/awl
+# Voor root deployment (https://awl.domain.com) laat leeg
+BASE_PATH=/awl
+
 # Google Gemini API Key
 GEMINI_API_KEY=jouw_gemini_api_key
 
@@ -188,6 +193,59 @@ pm2 monit                # Monitoring dashboard
 
 ### 3.1. Configure Reverse Proxy
 
+**Voor subfolder deployment (bijv. `https://tools.superworker.be/awl`):**
+
+```bash
+sudo nano /etc/nginx/sites-available/tools-superworker
+```
+
+Voeg toe of update de bestaande server block:
+```nginx
+server {
+    listen 80;
+    server_name tools.superworker.be;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Increase client body size voor image uploads (10MB)
+    client_max_body_size 10M;
+
+    # AWL Scanner subfolder
+    location /awl/ {
+        proxy_pass http://localhost:3001/awl/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+
+        # Timeout settings voor AI processing
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+
+    # Service Worker en PWA assets voor /awl
+    location ~ ^/awl/(sw\.js|manifest\.json)$ {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+    }
+
+    # Andere tools kunnen hier toegevoegd worden
+    # location /other-tool/ { ... }
+}
+```
+
+**Voor dedicated subdomain deployment (bijv. `https://awl.domain.com`):**
+
 ```bash
 sudo nano /etc/nginx/sites-available/awl-scanner
 ```
@@ -196,7 +254,7 @@ Voeg toe:
 ```nginx
 server {
     listen 80;
-    server_name awl.jouwdomein.nl;
+    server_name awl.domain.com;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -235,6 +293,19 @@ server {
 
 ### 3.2. Enable Site
 
+**Voor subfolder deployment:**
+```bash
+# Als config nog niet bestaat, maak symlink
+sudo ln -s /etc/nginx/sites-available/tools-superworker /etc/nginx/sites-enabled/
+
+# Test configuratie
+sudo nginx -t
+
+# Reload Nginx
+sudo systemctl reload nginx
+```
+
+**Voor subdomain deployment:**
 ```bash
 # Create symlink
 sudo ln -s /etc/nginx/sites-available/awl-scanner /etc/nginx/sites-enabled/
@@ -252,10 +323,27 @@ sudo systemctl reload nginx
 
 ### 4.1. Obtain SSL Certificate
 
+**Voor subfolder deployment (tools.superworker.be):**
+
+Als SSL al bestaat voor het hoofddomein, hoef je niets extra's te doen - het werkt automatisch voor `/awl`.
+
+Als SSL nog niet bestaat:
+```bash
+sudo certbot --nginx -d tools.superworker.be
+
+# Volg de prompts:
+# - Email: [jouw email]
+# - Terms: Agree
+# - Share email: No (optioneel)
+# - HTTPS redirect: Yes (aanbevolen)
+```
+
+**Voor subdomain deployment:**
+
 **Zorg dat DNS al naar VPS IP wijst!**
 
 ```bash
-sudo certbot --nginx -d awl.jouwdomein.nl
+sudo certbot --nginx -d awl.domain.com
 
 # Volg de prompts:
 # - Email: [jouw email]
@@ -282,12 +370,15 @@ sudo certbot renew --dry-run
 
 Ga naar Azure Portal → App Registrations → jouw AWL app:
 
-1. **Authentication** → **Platform configurations** → **Add a platform** → **Web**
-2. **Redirect URIs**: Voeg toe:
-   - `https://awl.jouwdomein.nl/auth/callback`
+1. **Authentication** → **Platform configurations** → **Add a platform** → **Web** (of edit bestaande)
+2. **Redirect URIs**: Voeg toe (afhankelijk van je deployment):
+   - **Voor subfolder deployment**: `https://tools.superworker.be/awl/auth/callback`
+   - **Voor subdomain deployment**: `https://awl.domain.com/auth/callback`
 3. **Front-channel logout URL**: (leeg laten)
 4. **Implicit grant**: Uitvinken (niet nodig)
-5. Klik **Configure**
+5. Klik **Configure** of **Save**
+
+**Note**: De app werkt ook zonder redirect URI als je alleen `Mail.Send` (Application) permissions gebruikt met Client Credentials flow.
 
 ### 5.2. API Permissions
 
@@ -338,12 +429,20 @@ sudo systemctl status nginx
 sudo nginx -t
 
 # Check SSL
-curl -I https://awl.jouwdomein.nl
+curl -I https://tools.superworker.be/awl
+# Of voor subdomain: curl -I https://awl.domain.com
 ```
 
 ### 7.2. Test PWA Installation
 
-1. Open in browser: `https://awl.jouwdomein.nl`
+**Voor subfolder deployment:**
+1. Open in browser: `https://tools.superworker.be/awl`
+2. Check dat HTTPS actief is (groene slot)
+3. Test PWA install prompt (mobiel + desktop)
+4. Upload test image → OCR → Email versturen
+
+**Voor subdomain deployment:**
+1. Open in browser: `https://awl.domain.com`
 2. Check dat HTTPS actief is (groene slot)
 3. Test PWA install prompt (mobiel + desktop)
 4. Upload test image → OCR → Email versturen

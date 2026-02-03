@@ -24,11 +24,18 @@ const sharp = require('sharp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const BASE_PATH = process.env.BASE_PATH || '';
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(path.join(__dirname, '../public')));
+
+// Serve static files from /public on the base path
+if (BASE_PATH) {
+  app.use(BASE_PATH, express.static(path.join(__dirname, '../public')));
+} else {
+  app.use(express.static(path.join(__dirname, '../public')));
+}
 
 // File upload config
 const upload = multer({
@@ -68,9 +75,13 @@ try {
   console.warn('Email sending will use alternative method if configured');
 }
 
+// ============ API ROUTES ============
+// Create router for API routes with base path support
+const apiRouter = express.Router();
+
 // ============ CONTACTS API ============
 
-app.get('/api/contacts', (req, res) => {
+apiRouter.get('/api/contacts', (req, res) => {
   try {
     const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
     res.json(contacts);
@@ -79,7 +90,7 @@ app.get('/api/contacts', (req, res) => {
   }
 });
 
-app.post('/api/contacts', (req, res) => {
+apiRouter.post('/api/contacts', (req, res) => {
   try {
     const { name, email } = req.body;
     if (!name || !email) {
@@ -100,7 +111,7 @@ app.post('/api/contacts', (req, res) => {
   }
 });
 
-app.delete('/api/contacts/:id', (req, res) => {
+apiRouter.delete('/api/contacts/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
     let contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
@@ -114,7 +125,7 @@ app.delete('/api/contacts/:id', (req, res) => {
 
 // ============ SCAN & PROCESS API ============
 
-app.post('/api/scan', upload.single('image'), async (req, res) => {
+apiRouter.post('/api/scan', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Geen afbeelding ontvangen' });
@@ -267,7 +278,7 @@ Regels:
 
 // ============ SEND EMAIL API ============
 
-app.post('/api/send', async (req, res) => {
+apiRouter.post('/api/send', async (req, res) => {
   try {
     const { contactIds, csv, pdf, summary, customMessage } = req.body;
 
@@ -357,6 +368,15 @@ app.post('/api/send', async (req, res) => {
   }
 });
 
+// ============ MOUNT ROUTER ============
+
+// Mount API router with or without base path
+if (BASE_PATH) {
+  app.use(BASE_PATH, apiRouter);
+} else {
+  app.use(apiRouter);
+}
+
 // ============ START SERVER ============
 
 app.listen(PORT, () => {
@@ -371,7 +391,8 @@ app.listen(PORT, () => {
   console.log('Environment:', {
     geminiConfigured: !!process.env.GEMINI_API_KEY,
     graphConfigured: !!graphClient,
-    port: PORT
+    port: PORT,
+    basePath: BASE_PATH || '/'
   });
 });
 
