@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#4F46E5">
+  <meta name="theme-color" content="#ea302d">
   <title>AWL Scanner</title>
   <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,21 +19,39 @@
     }
 
     :root {
-      --primary: #4F46E5;
-      --primary-dark: #4338CA;
+      /* Syntra Bizz Brand Colors */
+      --color-theme-accent: #ea302d;
+      --color-button-primary: #ea302d;
+      --color-button-primary--hover: #d02a27;
+      --color-button-secondary: #30bab0;
+      --color-button-secondary--hover: #45d0c6;
+      --color-text-title: #303236;
+      --color-text-body: #606170;
+      --color-text-secondary: #9397a4;
+      --color-black: #1a1b21;
+      --color-white: #fff;
+      --color-gray: #eff2f5;
+      --color-button-disabled: #d0d0d9;
+      
+      /* Map to existing variable names for backwards compatibility */
+      --primary: var(--color-theme-accent);
+      --primary-dark: var(--color-button-primary--hover);
+      --secondary: var(--color-button-secondary);
+      --secondary-dark: var(--color-button-secondary--hover);
       --success: #10B981;
       --warning: #F59E0B;
-      --danger: #EF4444;
+      --danger: var(--color-theme-accent);
       
       /* Light mode colors */
-      --bg-primary: #FFFFFF;
-      --bg-secondary: #F9FAFB;
+      --bg-primary: var(--color-white);
+      --bg-secondary: var(--color-gray);
       --bg-tertiary: #F3F4F6;
-      --text-primary: #111827;
-      --text-secondary: #6B7280;
+      --text-primary: var(--color-text-title);
+      --text-secondary: var(--color-text-body);
+      --text-tertiary: var(--color-text-secondary);
       --border-color: #E5E7EB;
       --shadow: rgba(0, 0, 0, 0.1);
-      --card-bg: #FFFFFF;
+      --card-bg: var(--color-white);
       
       --gray-50: #F9FAFB;
       --gray-100: #F3F4F6;
@@ -47,14 +65,20 @@
     @media (prefers-color-scheme: dark) {
       :root {
         /* Dark mode colors */
-        --bg-primary: #1F2937;
-        --bg-secondary: #111827;
-        --bg-tertiary: #374151;
-        --text-primary: #F9FAFB;
-        --text-secondary: #9CA3AF;
-        --border-color: #374151;
-        --shadow: rgba(0, 0, 0, 0.3);
-        --card-bg: #1F2937;
+        --bg-primary: var(--color-black);
+        --bg-secondary: #242530;
+        --bg-tertiary: #2d2e3a;
+        --text-primary: var(--color-white);
+        --text-secondary: #b8bac4;
+        --text-tertiary: var(--color-text-secondary);
+        --border-color: #3a3b47;
+        --shadow: rgba(0, 0, 0, 0.4);
+        --card-bg: #242530;
+        
+        /* Keep brand colors consistent in dark mode */
+        --color-theme-accent: #ea302d;
+        --color-button-primary: #ea302d;
+        --color-button-secondary: #30bab0;
         
         --gray-50: #374151;
         --gray-100: #4B5563;
@@ -258,8 +282,24 @@
     }
 
     .btn-primary:disabled {
-      background: var(--gray-300);
+      background: var(--color-button-disabled);
       cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--secondary);
+      color: white;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--secondary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary:disabled {
+      background: var(--color-button-disabled);
+      cursor: not-allowed;
+      transform: none;
     }
 
     .btn-success {
@@ -543,18 +583,22 @@
     }
 
     /* Settings toggle */
-    .settings-toggle {
-      position: absolute;
-      right: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      padding: 0.5rem;
+    /* Icon buttons in header */
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: white;
       cursor: pointer;
-      opacity: 0.8;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
-    .settings-toggle:hover {
-      opacity: 1;
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.15);
     }
 
     header {
@@ -579,11 +623,26 @@
       </h1>
       <p>Scan, digitaliseer & verstuur aanwezigheidslijsten</p>
     </div>
-    <div class="settings-toggle" onclick="toggleSettings()">
-      <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-      </svg>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <!-- Herstart button (hidden on step 1) -->
+      <button 
+        class="icon-btn" 
+        id="restartBtn"
+        onclick="confirmRestart()" 
+        title="Herstart"
+        style="display: none;">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
+      
+      <!-- Settings button -->
+      <button class="icon-btn" onclick="toggleSettings()" title="Instellingen">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -634,6 +693,18 @@
         <div id="imageCount" style="display:none; margin-top: 10px; text-align: center; color: var(--text-secondary);">
           <strong>Geselecteerd:</strong> <span id="imageCountText">0</span> foto's
         </div>
+
+        <!-- Extra foto's button -->
+        <button 
+          class="btn btn-secondary" 
+          id="addMoreBtn"
+          onclick="document.getElementById('fileInput').click()"
+          style="display: none; margin-top: 0.5rem;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M12 4v16m8-8H4" />
+          </svg>
+          Extra foto's toevoegen
+        </button>
 
         <button class="btn btn-primary" id="processBtn" disabled style="margin-top: 1rem;">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -850,20 +921,26 @@
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
         
-        // Soft warning for > 3 images (performance recommendation)
-        if (files.length > 3) {
+        // Check total count (existing + new)
+        const totalImages = capturedImages.length + files.length;
+        
+        // Soft warning for > 3 total images
+        if (totalImages > 3) {
           showToast('⚠️ Meer dan 3 foto\'s kan langer duren. Voor beste prestaties: gebruik max 3 foto\'s per keer.', 'warning');
         }
         
         // Hard limit at 5 images (technical constraint)
-        if (files.length > 5) {
-          showToast('Maximum 5 foto\'s toegestaan', 'error');
+        if (totalImages > 5) {
+          showToast(`Maximum 5 foto's toegestaan. Je hebt al ${capturedImages.length} foto's geselecteerd.`, 'error');
           fileInput.value = '';
           return;
         }
         
-        showLoading(`${files.length} foto${files.length > 1 ? '\'s' : ''} verwerken...`);
-        capturedImages = [];
+        const verb = capturedImages.length > 0 ? 'toevoegen' : 'verwerken';
+        showLoading(`${files.length} foto${files.length > 1 ? '\'s' : ''} ${verb}...`);
+        
+        // DON'T clear capturedImages - append mode
+        // capturedImages = [];  // <- REMOVED
         
         // Process each file (HEIC conversion if needed)
         for (let i = 0; i < files.length; i++) {
@@ -898,6 +975,9 @@
         document.getElementById('imageCountText').textContent = capturedImages.length;
         
         processBtn.disabled = false;
+        
+        // Reset file input to allow same file selection again
+        fileInput.value = '';
       });
 
       processBtn.addEventListener('click', processImage);
@@ -917,7 +997,7 @@
           
           const img = document.createElement('img');
           img.src = e.target.result;
-          img.style.cssText = 'width: 150px; height: 150px; object-fit: cover; border: 2px solid #4CAF50; border-radius: 8px;';
+          img.style.cssText = 'width: 150px; height: 150px; object-fit: cover; border: 2px solid var(--primary); border-radius: 8px;';
           img.alt = `Foto ${index + 1}`;
           
           const label = document.createElement('div');
@@ -926,9 +1006,41 @@
           
           // Delete button
           const deleteBtn = document.createElement('button');
-          deleteBtn.textContent = '×';
-          deleteBtn.style.cssText = 'position: absolute; top: 5px; right: 5px; background: red; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 1;';
-          deleteBtn.onclick = () => removeImage(index);
+          deleteBtn.innerHTML = `
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          `;
+          deleteBtn.style.cssText = `
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+          `;
+          
+          // Show delete button on hover
+          imgContainer.addEventListener('mouseenter', () => deleteBtn.style.opacity = '1');
+          imgContainer.addEventListener('mouseleave', () => deleteBtn.style.opacity = '0');
+          // Always show on mobile (touch devices)
+          if ('ontouchstart' in window) {
+            deleteBtn.style.opacity = '0.8';
+          }
+          
+          deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeImage(index);
+          });
           
           imgContainer.appendChild(img);
           imgContainer.appendChild(label);
@@ -937,6 +1049,31 @@
         };
         reader.readAsDataURL(file);
       });
+      
+      // Show/hide "Extra foto's" button
+      const addMoreBtn = document.getElementById('addMoreBtn');
+      if (addMoreBtn) {
+        // Show button if images exist AND under limit
+        addMoreBtn.style.display = (capturedImages.length > 0 && capturedImages.length < 5) 
+          ? 'block' 
+          : 'none';
+        
+        // Update button text with count
+        if (capturedImages.length > 0) {
+          const remaining = 5 - capturedImages.length;
+          const btnText = remaining > 0 
+            ? `Extra foto's toevoegen (nog ${remaining} mogelijk)`
+            : 'Maximum bereikt (5 foto\'s)';
+          
+          addMoreBtn.innerHTML = `
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 4v16m8-8H4" />
+            </svg>
+            ${btnText}
+          `;
+          addMoreBtn.disabled = (remaining === 0);
+        }
+      }
     }
 
     // Remove image from array
@@ -1289,6 +1426,12 @@
       currentStep = step;
       updateSteps();
       showSection(step);
+      
+      // Show/hide restart button (only visible after step 1)
+      const restartBtn = document.getElementById('restartBtn');
+      if (restartBtn) {
+        restartBtn.style.display = (step > 1) ? 'block' : 'none';
+      }
     }
 
     function updateSteps() {
@@ -1352,6 +1495,26 @@
 
       renderContacts();
       goToStep(1);
+    }
+
+    // Restart with confirmation
+    function confirmRestart() {
+      // Only show confirmation if user has data (not on step 1)
+      if (currentStep === 1 && !scanResult) {
+        resetAll();
+        return;
+      }
+      
+      const message = currentStep === 2 
+        ? 'Weet je zeker dat je opnieuw wilt beginnen? De scan resultaten gaan verloren.'
+        : currentStep === 3
+        ? 'Weet je zeker dat je opnieuw wilt beginnen? Niet-verstuurde gegevens gaan verloren.'
+        : 'Weet je zeker dat je opnieuw wilt beginnen?';
+      
+      if (confirm(message)) {
+        resetAll();
+        showToast('Opnieuw gestart', 'info');
+      }
     }
 
     // UI Helpers
