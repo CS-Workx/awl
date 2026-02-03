@@ -235,7 +235,7 @@ apiRouter.post('/api/scan', upload.array('images', 5), async (req, res) => {
         }
 
         // 2. Process image with Gemini Vision
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const imageData = {
           inlineData: {
