@@ -37,10 +37,21 @@ if (BASE_PATH) {
   app.use(express.static(path.join(__dirname, '../public')));
 }
 
-// File upload config
+// File upload config met HEIC support
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    // Accepteer alle image types + HEIC/HEIF
+    const isImage = file.mimetype.startsWith('image/');
+    const isHEIC = /\.(heic|heif)$/i.test(file.originalname);
+    
+    if (isImage || isHEIC) {
+      cb(null, true);
+    } else {
+      cb(new Error('Alleen afbeeldingen zijn toegestaan'));
+    }
+  }
 });
 
 // Data storage paths
@@ -121,6 +132,39 @@ apiRouter.delete('/api/contacts/:id', (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Kon contact niet verwijderen' });
   }
+});
+
+// ============ MANIFEST ENDPOINT ============
+// Dynamisch manifest.json met BASE_PATH support
+
+apiRouter.get('/manifest.json', (req, res) => {
+  const manifest = {
+    name: "AWL Scanner",
+    short_name: "AWL Scanner",
+    description: "Scan, digitaliseer en verstuur aanwezigheidslijsten",
+    start_url: BASE_PATH + "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#4F46E5",
+    orientation: "portrait",
+    icons: [
+      {
+        src: BASE_PATH + "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any maskable"
+      },
+      {
+        src: BASE_PATH + "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any maskable"
+      }
+    ]
+  };
+  
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json(manifest);
 });
 
 // ============ SCAN & PROCESS API ============

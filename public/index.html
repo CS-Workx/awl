@@ -8,6 +8,8 @@
   <meta name="theme-color" content="#4F46E5">
   <title>AWL Scanner</title>
   <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
+  <!-- HEIC support voor iOS foto's -->
+  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * {
@@ -951,40 +953,36 @@
       }
     }
 
-    // Convert HEIC to JPEG using Canvas
+    // Convert HEIC to JPEG - Hybrid approach
     async function convertHEICtoJPEG(file) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            
-            canvas.toBlob((blob) => {
-              if (blob) {
-                const convertedFile = new File([blob], file.name.replace(/\.heic$/i, '.jpg'), {
-                  type: 'image/jpeg',
-                  lastModified: Date.now()
-                });
-                resolve(convertedFile);
-              } else {
-                reject(new Error('Canvas conversion failed'));
-              }
-            }, 'image/jpeg', 0.9);
-          };
+      // Check if heic2any library is loaded
+      if (typeof heic2any === 'function') {
+        try {
+          console.log('🔄 Converting HEIC with heic2any library...');
+          const blob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.9
+          });
           
-          img.onerror = () => reject(new Error('Image load failed'));
-          img.src = e.target.result;
-        };
-        
-        reader.onerror = () => reject(new Error('File read failed'));
-        reader.readAsDataURL(file);
-      });
+          const convertedFile = new File(
+            [blob], 
+            file.name.replace(/\.heic$/i, '.jpg'), 
+            { type: 'image/jpeg', lastModified: Date.now() }
+          );
+          
+          console.log('✓ HEIC converted client-side:', convertedFile.size, 'bytes');
+          return convertedFile;
+        } catch (error) {
+          console.warn('⚠ Client-side HEIC conversion failed, uploading original:', error.message);
+          // Fallback: return origineel bestand, server zal converteren
+          return file;
+        }
+      } else {
+        console.log('⚠ heic2any not loaded, uploading original HEIC (server will convert)');
+        // Geen heic2any: upload origineel, server converteert
+        return file;
+      }
     }
 
     // Process Image with AI
