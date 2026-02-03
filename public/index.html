@@ -853,9 +853,9 @@
           showToast('⚠️ Meer dan 3 foto\'s kan langer duren. Voor beste prestaties: gebruik max 3 foto\'s per keer.', 'warning');
         }
         
-        // Hard limit at 10 images (technical constraint)
-        if (files.length > 10) {
-          showToast('Maximum 10 foto\'s toegestaan', 'error');
+        // Hard limit at 5 images (technical constraint)
+        if (files.length > 5) {
+          showToast('Maximum 5 foto\'s toegestaan', 'error');
           fileInput.value = '';
           return;
         }
@@ -987,7 +987,11 @@
         displayResults(result);
         goToStep(2);
         
-        if (count === 1) {
+        // Show success message with metadata
+        if (result.metadata) {
+          const msg = `${result.metadata.uniqueContacts} unieke deelnemers gevonden uit ${result.metadata.totalImages} ${result.metadata.totalImages === 1 ? 'pagina' : 'pagina\'s'}`;
+          showToast(msg, 'success');
+        } else if (count === 1) {
           showToast('Aanwezigheidslijst succesvol verwerkt!', 'success');
         } else {
           showToast(`${count} foto's succesvol verwerkt! ${result.summary.totaal} deelnemers gevonden.`, 'success');
