@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Steff Vanhaverbeke">
+    <meta name="description" content="AI-ondersteunde offertegeneratie voor Syntra Bizz bedrijfsopleidingen">
+    <meta name="copyright" content="Copyright 2026 Steff Vanhaverbeke for Syntra Bizz">
+    <title>Syntra Bizz - Offerte Generator</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Syntra Bizz Offerte Generator</h1>
+            <p class="subtitle">AI-ondersteunde offertegeneratie voor bedrijfsopleidingen</p>
+        </header>
+
+        <main>
+            <!-- Template Selection -->
+            <section class="step-section" id="template-section">
+                <div class="step-header">
+                    <span class="step-number">📄</span>
+                    <h2>Template Selectie</h2>
+                </div>
+                
+                <div class="template-selector">
+                    <div class="form-group">
+                        <label>Kies Template</label>
+                        <select id="templateSelect" class="form-control">
+                            <option value="default">Standaard Syntra Bizz Template</option>
+                        </select>
+                    </div>
+                    
+                    <div class="upload-template-section">
+                        <input type="file" id="templateUpload" accept=".docx" style="display: none;">
+                        <button class="btn-secondary" id="uploadTemplateBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            Upload Eigen Template
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="template-info">
+                    <p><strong>💡 Gebruik placeholders in uw template:</strong></p>
+                    <div class="placeholder-examples">
+                        <code>{{client_name}}</code> - Klantnaam |
+                        <code>{{reference_number}}</code> - Referentienummer |
+                        <code>{{training_title}}</code> - Opleiding titel |
+                        <code>{{offer_date}}</code> - Offerte datum |
+                        <code>{{advisor_name}}</code> - Adviseur |
+                        <code>{{project_manager_name}}</code> - Project manager |
+                        <code>{{number_of_participants}}</code> - Aantal deelnemers
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 1: CRM Data -->
+            <section class="step-section" id="step1">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <h2>CRM Gegevens</h2>
+                </div>
+
+                <!-- Option selector -->
+                <div class="option-tabs">
+                    <button class="tab-btn active" data-tab="screenshot">Screenshot Upload</button>
+                    <button class="tab-btn" data-tab="browser">CRM Browser Login</button>
+                </div>
+
+                <!-- Screenshot upload tab -->
+                <div class="tab-content active" id="screenshot-tab">
+                    <div class="upload-area" id="screenshotUploadArea">
+                        <input type="file" id="screenshotInput" accept="image/*" style="display: none;">
+                        <div class="upload-placeholder" id="uploadPlaceholder">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p>Sleep CRM screenshot hier of klik om te uploaden</p>
+                            <button class="btn-secondary" id="selectFileBtn" type="button">
+                                Selecteer bestand
+                            </button>
+                        </div>
+                        <div class="upload-preview" id="uploadPreview" style="display: none;">
+                            <img id="previewImage" src="" alt="Screenshot preview">
+                            <div class="preview-info">
+                                <p id="previewFileName"></p>
+                                <p id="previewStatus" class="status-text">Bezig met verwerken...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Browser login tab -->
+                <div class="tab-content" id="browser-tab">
+                    <div class="browser-login-section">
+                        <div class="form-group">
+                            <label>CRM Login URL</label>
+                            <div class="input-group">
+                                <input type="url" id="crmLoginUrl" class="form-control" placeholder="https://your-crm-system.com/login">
+                                <button class="btn-secondary" id="openCrmBtn">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                    Open CRM
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="browserStatus" class="browser-status" style="display: none;">
+                            <div class="status-indicator">
+                                <span class="status-dot active"></span>
+                                <span>Browser actief</span>
+                            </div>
+                            <p class="status-text">Login in het CRM en navigeer naar het ticket/opportunity</p>
+                        </div>
+
+                        <div class="form-group" id="ticketUrlGroup" style="display: none;">
+                            <label>Ticket/Opportunity URL (optioneel)</label>
+                            <div class="input-group">
+                                <input type="url" id="ticketUrl" class="form-control" placeholder="https://crm/ticket/12345">
+                                <button class="btn-secondary" id="navigateTicketBtn">Navigeer</button>
+                            </div>
+                        </div>
+
+                        <div class="browser-actions" id="browserActions" style="display: none;">
+                            <button class="btn-primary" id="captureBtn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                Capture & Extract Data
+                            </button>
+                            <button class="btn-secondary" id="closeBrowserBtn">Sluit Browser</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="crmDataPreview" class="data-preview" style="display: none;">
+                    <h3>Geëxtraheerde CRM Gegevens (bewerkbaar)</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Onderwerp</label>
+                            <input type="text" id="onderwerp" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Klant</label>
+                            <input type="text" id="potentiele_klant" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Type/Docent</label>
+                            <input type="text" id="type" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Primaire Contact</label>
+                            <input type="text" id="primaire_contact" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Extra Contact</label>
+                            <input type="text" id="extra_contact" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Training Code</label>
+                            <input type="text" id="commerciele_container" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Sales Stage</label>
+                            <input type="text" id="sales_stage" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Waarschijnlijkheid (%)</label>
+                            <input type="text" id="waarschijnlijkheid" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Gewogen Omzet</label>
+                            <input type="text" id="gewogen_omzet" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Weighted Margin</label>
+                            <input type="text" id="weighted_margin" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Sluitingsdatum</label>
+                            <input type="text" id="sluitingsdatum" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Datum Offerte</label>
+                            <input type="text" id="datum_offerte" class="form-control">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Beschrijving</label>
+                            <textarea id="beschrijving" class="form-control" rows="3"></textarea>
+                        </div>
+                        
+                        <!-- New fields: Project Manager -->
+                        <div class="form-group full-width">
+                            <h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Project Manager</h4>
+                        </div>
+                        <div class="form-group">
+                            <label>Naam</label>
+                            <input type="text" id="project_manager_name" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Telefoon</label>
+                            <input type="text" id="project_manager_phone" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="project_manager_email" class="form-control">
+                        </div>
+                        
+                        <!-- New fields: Advisor -->
+                        <div class="form-group full-width">
+                            <h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Opleidingsadviseur</h4>
+                        </div>
+                        <div class="form-group">
+                            <label>Naam</label>
+                            <input type="text" id="advisor_name" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Telefoon</label>
+                            <input type="text" id="advisor_phone" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="advisor_email" class="form-control">
+                        </div>
+                        
+                        <!-- New fields: Client Company Info -->
+                        <div class="form-group full-width">
+                            <h4 style="margin-top: 1rem; margin-bottom: 0.5rem;">Klant Bedrijfsgegevens</h4>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Bedrijfsadres</label>
+                            <textarea id="client_company_address" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>BTW Nummer</label>
+                            <input type="text" id="client_vat_number" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="crmLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>CRM gegevens worden geëxtraheerd...</p>
+                </div>
+            </section>
+
+            <!-- Step 2: Training Program -->
+            <section class="step-section" id="step2">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <h2>Opleidingsprogramma</h2>
+                </div>
+
+                <div class="form-group">
+                    <label>Training URL</label>
+                    <div class="input-group">
+                        <input type="url" id="trainingUrl" class="form-control" placeholder="https://www.syntra-ab.be/...">
+                        <button class="btn-secondary" id="extractTrainingBtn">Ophalen</button>
+                        <button class="btn-secondary" id="viewTrainingUrlBtn">🔍 View URL</button>
+                    </div>
+                </div>
+
+                <div class="input-separator">
+                    <span>OF</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload Opleidingsdocument</label>
+                    <div class="upload-area" id="trainingDocUploadArea">
+                        <input type="file" id="trainingDocInput" accept=".pdf,.docx,.doc,.txt" hidden>
+                        <div class="upload-placeholder">
+                            <span class="upload-icon">📄</span>
+                            <p>Sleep document hier of <button type="button" class="btn-link" id="selectTrainingDocBtn">kies bestand</button></p>
+                            <small>PDF, Word (.docx) of tekst (.txt) - max 10MB</small>
+                        </div>
+                    </div>
+                    <div id="uploadedFileName" class="uploaded-file-name" style="display: none;"></div>
+                </div>
+
+                <div id="trainingDataPreview" class="data-preview" style="display: none;">
+                    <h3>Opleidingsgegevens (bewerkbaar)</h3>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Titel</label>
+                            <input type="text" id="training_title" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Duur</label>
+                            <input type="text" id="training_duration" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Prijs</label>
+                            <input type="text" id="training_price" class="form-control">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Doelgroep</label>
+                            <textarea id="training_target_audience" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Leerdoelen</label>
+                            <textarea id="training_learning_objectives" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Programma-inhoud</label>
+                            <textarea id="training_program_outline" class="form-control" rows="4"></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Trainer Info</label>
+                            <textarea id="training_trainer_info" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="trainingLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Opleidingsgegevens worden opgehaald...</p>
+                </div>
+            </section>
+
+            <!-- Step 3: Intake Information -->
+            <section class="step-section" id="step3">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    <h2>Intake Informatie</h2>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Aantal Deelnemers</label>
+                        <input type="number" id="number_of_participants" class="form-control" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Voorkeursdata</label>
+                        <input type="text" id="preferred_dates" class="form-control" placeholder="vb. Week 15-16, 2026">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Doelstellingen Klant</label>
+                        <textarea id="client_goals" class="form-control" rows="3" placeholder="Wat wil de klant bereiken?"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Specifieke Eisen</label>
+                        <textarea id="specific_requirements" class="form-control" rows="3" placeholder="Bijzondere wensen of eisen van de klant"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Aanvullende Opmerkingen</label>
+                        <textarea id="additional_notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Generate Button -->
+            <div class="action-section">
+                <button class="btn-primary" id="generateOfferBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    Genereer Offerte
+                </button>
+            </div>
+
+            <div id="generateLoading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Offerte wordt gegenereerd met AI...</p>
+            </div>
+
+            <!-- Offer Preview -->
+            <section class="step-section" id="offerPreview" style="display: none;">
+                <div class="step-header">
+                    <h2>Gegenereerde Offerte - Voorbeeld</h2>
+                </div>
+
+                <div class="offer-content">
+                    <div class="offer-section">
+                        <h3>Introductie</h3>
+                        <textarea id="edit_introduction" class="offer-edit-field" rows="8"></textarea>
+                        <button class="btn-copy-markdown" data-field="introduction">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Markdown
+                        </button>
+                    </div>
+
+                    <div class="offer-section">
+                        <h3>Opleidingsdoelstellingen</h3>
+                        <textarea id="edit_training_objectives" class="offer-edit-field" rows="8"></textarea>
+                        <button class="btn-copy-markdown" data-field="training_objectives">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Markdown
+                        </button>
+                    </div>
+
+                    <div class="offer-section">
+                        <h3>Programmaoverzicht</h3>
+                        <textarea id="edit_program_overview" class="offer-edit-field" rows="8"></textarea>
+                        <button class="btn-copy-markdown" data-field="program_overview">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Markdown
+                        </button>
+                    </div>
+
+                    <div class="offer-section">
+                        <h3>Praktische Regeling</h3>
+                        <textarea id="edit_practical_arrangements" class="offer-edit-field" rows="8"></textarea>
+                        <button class="btn-copy-markdown" data-field="practical_arrangements">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Markdown
+                        </button>
+                    </div>
+
+                    <div class="offer-section">
+                        <h3>Investering</h3>
+                        <textarea id="edit_investment" class="offer-edit-field" rows="8"></textarea>
+                        <button class="btn-copy-markdown" data-field="investment">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Markdown
+                        </button>
+                    </div>
+
+                    <div class="offer-section">
+                        <h3>Volgende Stappen</h3>
+                        <textarea id="edit_next_steps" class="offer-edit-field" rows="8"></textarea>
+                        <button class="btn-copy-markdown" data-field="next_steps">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            Copy Markdown
+                        </button>
+                    </div>
+                </div>
+
+                <div class="action-section">
+                    <button class="btn-primary" id="downloadDocxBtn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        Download DOCX
+                    </button>
+                </div>
+
+                <div id="downloadLoading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>DOCX wordt gegenereerd...</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Steff Vanhaverbeke for Syntra Bizz | <a href="LICENSE" target="_blank">MIT License</a></p>
+            <p class="footer-contact">Syntra Bizz | <a href="https://www.syntra-ab.be" target="_blank">www.syntra-ab.be</a></p>
+        </footer>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
