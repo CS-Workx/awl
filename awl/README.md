@@ -10,11 +10,13 @@ Een Progressive Web App (PWA) die het makkelijk maakt om papieren aanwezigheidsl
 ## Features
 
 - **Scan**: Maak een foto van je aanwezigheidslijst met je iPhone camera
+- **Multi-Image Support**: Upload tot 10 foto's tegelijk voor multi-page lijsten
 - **AI-Powered OCR**: Gemini Vision analyseert de lijst en extraheert alle data
 - **Digitale versie**: Automatisch CSV export van aanwezigheden
-- **PDF**: Gescande afbeelding wordt omgezet naar PDF
+- **PDF**: Gescande afbeelding wordt omgezet naar PDF (multi-page support)
 - **Email**: Verstuur beide bestanden naar je contactpersonen met één klik
 - **PWA**: Installeerbaar op je iPhone home screen
+- **Deduplicatie**: Dubbele namen worden automatisch verwijderd
 
 ---
 
@@ -57,15 +59,70 @@ Vul de volgende waarden in:
 ```env
 PORT=3000
 GEMINI_API_KEY=jouw_gemini_api_key
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=steff@thehouseofcoaching.com
-SMTP_PASS=jouw_email_wachtwoord
+
+# Microsoft Graph API (AANBEVOLEN - voor email verzending)
+MICROSOFT_CLIENT_ID=jouw-azure-client-id
+MICROSOFT_CLIENT_SECRET=jouw-azure-client-secret
+MICROSOFT_TENANT_ID=jouw-azure-tenant-id
+SENDER_EMAIL=jouw@email.com
+SENDER_NAME="Jouw Naam"
 ```
 
-**SMTP configuratie voor The House of Coaching:**
-Als je Microsoft 365 / Outlook gebruikt, heb je mogelijk een "App Password" nodig. Zie: https://support.microsoft.com/nl-nl/account-billing/app-wachtwoorden
+### Microsoft Graph API Setup (Email Verzending)
+
+De applicatie gebruikt Microsoft Graph API voor veilige email verzending via OAuth2. Volg deze stappen:
+
+#### 1. Azure AD App Registration
+
+1. Ga naar [Azure Portal → App Registrations](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
+2. Click **New registration**
+3. Configureer:
+   - **Name**: AWL Scanner
+   - **Supported account types**: Accounts in this organizational directory only
+   - **Redirect URI**: Laat leeg (niet nodig voor server apps)
+4. Click **Register**
+5. Noteer op het Overview scherm:
+   - **Application (client) ID**
+   - **Directory (tenant) ID**
+
+#### 2. Client Secret Aanmaken
+
+1. Ga naar **Certificates & secrets** in het linker menu
+2. Click **New client secret**
+3. Geef een beschrijving (bijv. "AWL Scanner Production")
+4. Stel expiration in (max 24 maanden)
+5. Click **Add**
+6. **Kopieer direct de Value** (wordt maar 1x getoond!)
+
+#### 3. API Permissions Configureren
+
+1. Ga naar **API permissions**
+2. Click **Add a permission** → **Microsoft Graph** → **Application permissions**
+3. Zoek en selecteer: **`Mail.Send`**
+4. Click **Add permissions**
+5. Click **Grant admin consent for [Your Tenant]**
+   - ⚠️ Dit vereist admin rechten in je Azure AD tenant
+
+#### 4. .env Configureren
+
+Voeg de verzamelde waarden toe aan je `.env` bestand:
+
+```env
+MICROSOFT_CLIENT_ID=12345678-1234-1234-1234-123456789abc
+MICROSOFT_CLIENT_SECRET=jouw_client_secret_value_hier
+MICROSOFT_TENANT_ID=87654321-4321-4321-4321-cba987654321
+SENDER_EMAIL=steff@thehouseofcoaching.com
+SENDER_NAME="Steff - The House of Coaching"
+```
+
+#### Troubleshooting Email Sending
+
+| Error | Oorzaak | Oplossing |
+|-------|---------|-----------|
+| **401 Unauthorized** | Incorrecte credentials | Check `MICROSOFT_CLIENT_ID` en `MICROSOFT_CLIENT_SECRET` in `.env` |
+| **403 Forbidden** | Ontbrekende permissions | Verifieer dat `Mail.Send` permission admin consent heeft in Azure Portal |
+| **404 Not Found** | Sender email bestaat niet | Check dat `SENDER_EMAIL` correct is en bestaat in je tenant |
+| **Graph API initialization failed** | Ontbrekende env variables | Controleer of alle `MICROSOFT_*` variabelen aanwezig zijn in `.env` |
 
 ### Stap 3: Installeer dependencies
 
@@ -158,7 +215,49 @@ nginx -t && systemctl reload nginx
 
 ---
 
+## Multi-Image Support
+
+Upload meerdere foto's tegelijk voor lange of multi-page aanwezigheidslijsten:
+
+📸 **Hoe te gebruiken:**
+- Klik op "Kies foto's" en selecteer 2-10 bestanden tegelijk
+- Of maak meerdere foto's achter elkaar met de camera
+- Preview thumbnails tonen alle geselecteerde foto's
+- Klik op ×  knop om een foto te verwijderen
+
+✨ **Wat gebeurt er:**
+- Alle foto's worden sequentieel verwerkt met AI
+- Deelnemers van alle pagina's worden samengevoegd in één lijst
+- Dubbele namen worden automatisch verwijderd
+- PDF bevat alle gescande pagina's
+- CSV bevat alle unieke deelnemers
+
+⚡ **Verwerkingstijd:**
+- 1 foto: ~4 seconden
+- 3 foto's: ~12 seconden  
+- 5 foto's: ~20 seconden
+
+---
+
 ## Troubleshooting
+
+### Supported Image Formats
+
+- ✅ JPEG (.jpg, .jpeg)
+- ✅ PNG (.png)
+- ✅ WebP (.webp)
+- ✅ HEIC (.heic, .heif) - **Requires libheif on server**
+
+**macOS Server Setup:**
+```bash
+brew install libheif
+cd awl && npm rebuild sharp
+```
+
+**iOS Users:** If HEIC uploads fail, convert to JPEG:
+1. Open image in Photos app
+2. Tap Share → Duplicate
+3. Choose "Save as JPEG"
 
 ### Email wordt niet verstuurd
 
@@ -169,10 +268,28 @@ nginx -t && systemctl reload nginx
 
 ### AI herkent de lijst niet goed
 
-- Zorg voor goede belichting bij het fotograferen
-- Houd de camera recht boven de lijst
-- Vermijd schaduwen en reflecties
-- Het werkt het best met duidelijk leesbare handtekeningen
+**Verbeter de fotokwaliteit:**
+- ✅ Goede, gelijkmatige belichting (geen schaduwen)
+- ✅ Camera recht boven de lijst (niet schuin)
+- ✅ Geen reflecties of glare
+- ✅ Scherpe focus (niet wazig of bewogen)
+- ✅ Alle velden volledig zichtbaar (niet afgesneden)
+- ✅ Hoge resolutie (gebruik achtercamera, niet voorcamera)
+
+**Pro Tips:**
+- 💡 Gebruik natuurlijk licht bij een raam (geen TL-licht)
+- 📄 Leg de lijst op een vlakke, donkere ondergrond
+- 🤳 Houd camera stil met beide handen of gebruik statief
+- 🔍 Zoom niet in, fotografeer de hele lijst in één keer
+- 📐 Zorg dat de lijst recht ligt (niet gedraaid)
+- ⚡ Vermijd flits, gebruik daglicht
+
+**Herkenning verbeterd:**
+De app optimaliseert automatisch:
+- Contrast en helderheid
+- Beeldscherpte
+- Rotatie (EXIF)
+- Bestandsgrootte
 
 ### PWA installeert niet
 

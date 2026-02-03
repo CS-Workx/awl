@@ -19,21 +19,42 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const nodemailer = require('nodemailer');
 const { PDFDocument } = require('pdf-lib');
 const sharp = require('sharp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const BASE_PATH = process.env.BASE_PATH || '';
 
 // Middleware
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// File upload config
+// Serve static files from /public on the base path
+if (BASE_PATH) {
+  app.use(BASE_PATH, express.static(path.join(__dirname, '../public')));
+} else {
+  app.use(express.static(path.join(__dirname, '../public')));
+}
+
+// File upload config met HEIC support (multi-file)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
+  limits: { 
+    fileSize: 10 * 1024 * 1024,  // 10MB per file
+    files: 5                      // Max 5 files total
+  },
+  fileFilter: (req, file, cb) => {
+    // Accepteer alle image types + HEIC/HEIF
+    const isImage = file.mimetype.startsWith('image/');
+    const isHEIC = /\.(heic|heif)$/i.test(file.originalname);
+    
+    if (isImage || isHEIC) {
+      cb(null, true);
+    } else {
+      cb(new Error('Alleen afbeeldingen zijn toegestaan'));
+    }
+  }
 });
 
 // Data storage paths
@@ -57,20 +78,24 @@ if (!fs.existsSync(CONTACTS_FILE)) {
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Email transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
+// Initialize email client (Microsoft Graph API)
+let graphClient;
+try {
+  const GraphEmailClient = require('./graphClient');
+  graphClient = new GraphEmailClient();
+  console.log('✓ Microsoft Graph API client initialized');
+} catch (error) {
+  console.warn('⚠ Graph API not available:', error.message);
+  console.warn('Email sending will use alternative method if configured');
+}
+
+// ============ API ROUTES ============
+// Create router for API routes with base path support
+const apiRouter = express.Router();
 
 // ============ CONTACTS API ============
 
-app.get('/api/contacts', (req, res) => {
+apiRouter.get('/api/contacts', (req, res) => {
   try {
     const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
     res.json(contacts);
@@ -79,7 +104,7 @@ app.get('/api/contacts', (req, res) => {
   }
 });
 
-app.post('/api/contacts', (req, res) => {
+apiRouter.post('/api/contacts', (req, res) => {
   try {
     const { name, email } = req.body;
     if (!name || !email) {
@@ -100,7 +125,7 @@ app.post('/api/contacts', (req, res) => {
   }
 });
 
-app.delete('/api/contacts/:id', (req, res) => {
+apiRouter.delete('/api/contacts/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
     let contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
@@ -112,44 +137,114 @@ app.delete('/api/contacts/:id', (req, res) => {
   }
 });
 
+// ============ MANIFEST ENDPOINT ============
+// Dynamisch manifest.json met BASE_PATH support
+
+apiRouter.get('/manifest.json', (req, res) => {
+  const manifest = {
+    name: "AWL Scanner",
+    short_name: "AWL Scanner",
+    description: "Scan, digitaliseer en verstuur aanwezigheidslijsten",
+    start_url: BASE_PATH + "/",
+    display: "standalone",
+    background_color: "#ffffff",
+    theme_color: "#4F46E5",
+    orientation: "portrait",
+    icons: [
+      {
+        src: BASE_PATH + "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any maskable"
+      },
+      {
+        src: BASE_PATH + "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any maskable"
+      }
+    ]
+  };
+  
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.json(manifest);
+});
+
 // ============ SCAN & PROCESS API ============
 
-app.post('/api/scan', upload.single('image'), async (req, res) => {
+apiRouter.post('/api/scan', upload.array('images', 5), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Geen afbeelding ontvangen' });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Geen afbeeldingen ontvangen' });
     }
 
-    console.log('Processing image...');
-    console.log('File info:', {
-      originalname: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size
+    if (req.files.length > 5) {
+      return res.status(400).json({ error: 'Maximum 5 afbeeldingen toegestaan' });
+    }
+
+    console.log(`Processing ${req.files.length} image(s)...`);
+    req.files.forEach((file, i) => {
+      console.log(`Image ${i + 1}:`, {
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size
+      });
     });
 
-    // 1. Convert image to JPEG format (compatible with Gemini)
-    let processedImageBuffer;
-    try {
-      processedImageBuffer = await sharp(req.file.buffer)
-        .jpeg({ quality: 90 })
-        .toBuffer();
-      console.log('Image converted to JPEG, size:', processedImageBuffer.length);
-    } catch (conversionError) {
-      console.error('Image conversion error:', conversionError);
-      return res.status(500).json({ error: 'Kon afbeelding niet verwerken' });
-    }
+    // Arrays to store results from all images
+    const allParsedData = [];
+    const processedImages = [];
 
-    // 2. Process image with Gemini Vision
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Process each image sequentially
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      console.log(`\n=== Processing image ${i + 1}/${req.files.length} ===`);
+      
+      try {
+        // 1. Convert image to JPEG format (compatible with Gemini)
+        let processedImageBuffer;
+        try {
+          processedImageBuffer = await sharp(file.buffer)
+            .resize(3000, 3000, { fit: 'inside', withoutEnlargement: true })
+            .sharpen()
+            .normalize()
+            .jpeg({ quality: 95 })
+            .toBuffer();
+          
+          const imageInfo = await sharp(processedImageBuffer).metadata();
+          console.log(`Image ${i + 1} optimized:`, imageInfo.width, 'x', imageInfo.height, 'JPEG');
+        } catch (conversionError) {
+          console.error(`Image ${i + 1} conversion error:`, conversionError.message);
+          
+          // Special handling for HEIC files
+          if (file.mimetype === 'image/heic' || file.mimetype === 'image/heif' || 
+              file.originalname.match(/\.(heic|heif)$/i)) {
+            console.error('HEIC processing failed - libheif codec not available on server');
+            
+            // If this is the only image, return specific error
+            if (req.files.length === 1) {
+              return res.status(400).json({
+                error: 'HEIC conversie niet ondersteund op deze server',
+                suggestion: 'Gebruik een moderne browser (Chrome/Edge/Safari) die HEIC automatisch converteert, of converteer de foto eerst naar JPEG'
+              });
+            }
+          }
+          
+          // Continue with other images if multi-upload
+          continue;
+        }
 
-    const imageData = {
-      inlineData: {
-        data: processedImageBuffer.toString('base64'),
-        mimeType: 'image/jpeg'
-      }
-    };
+        // 2. Process image with Gemini Vision
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
-    const prompt = `Je bent een OCR-specialist. Analyseer deze aanwezigheidslijst (attendance list) en extraheer alle gegevens.
+        const imageData = {
+          inlineData: {
+            data: processedImageBuffer.toString('base64'),
+            mimeType: 'image/jpeg'
+          }
+        };
+
+        const prompt = `Je bent een OCR-specialist. Analyseer deze aanwezigheidslijst (attendance list) en extraheer alle gegevens.
 
 Geef het resultaat EXACT in dit JSON formaat:
 {
@@ -176,72 +271,135 @@ Regels:
 - Laat velden leeg ("") als de info niet zichtbaar is
 - Geef ALLEEN valid JSON terug, geen andere tekst`;
 
-    console.log('Sending request to Gemini API...');
-    let result;
-    try {
-      result = await model.generateContent([prompt, imageData]);
-      console.log('Gemini API response received');
-    } catch (geminiError) {
-      console.error('Gemini API error:', geminiError);
-      return res.status(500).json({ 
-        error: 'Fout bij AI verwerking: ' + geminiError.message,
-        details: geminiError.toString()
-      });
-    }
+        console.log(`Image ${i + 1}: Sending to Gemini API...`);
+        let result;
+        try {
+          result = await model.generateContent([prompt, imageData]);
+          console.log(`Image ${i + 1}: Gemini API response received`);
+        } catch (geminiError) {
+          console.error(`Image ${i + 1} Gemini API error:`, geminiError.message);
+          continue; // Skip this image, continue with next
+        }
 
-    const responseText = result.response.text();
-    console.log('Response text length:', responseText.length);
+        const responseText = result.response.text();
+        console.log(`Image ${i + 1}: Response text length:`, responseText.length);
 
-    // Parse the JSON from Gemini's response
-    let parsedData;
-    try {
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedData = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Geen JSON gevonden in response');
+        // Parse the JSON from Gemini's response
+        try {
+          // Try to extract JSON from the response
+          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsedData = JSON.parse(jsonMatch[0]);
+            allParsedData.push(parsedData);
+            console.log(`Image ${i + 1}: Found ${parsedData.deelnemers?.length || 0} deelnemers`);
+          } else {
+            console.warn(`Image ${i + 1}: Geen JSON gevonden in response`);
+          }
+        } catch (parseError) {
+          console.error(`Image ${i + 1} JSON parse error:`, parseError.message);
+          // Continue with next image
+        }
+
+        // Store processed image for PDF
+        processedImages.push(processedImageBuffer);
+
+      } catch (error) {
+        console.error(`Error processing image ${i + 1}:`, error.message);
+        // Continue with next image
       }
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      return res.status(500).json({
-        error: 'Kon de aanwezigheidslijst niet correct lezen',
-        raw: responseText
+    }
+
+    console.log(`\n=== Processed ${processedImages.length}/${req.files.length} images successfully ===`);
+
+    // Check if we got any results
+    if (allParsedData.length === 0) {
+      // Detect if all files were HEIC
+      const allHEIC = req.files.every(f => 
+        f.mimetype === 'image/heic' || 
+        f.mimetype === 'image/heif' || 
+        f.originalname.match(/\.(heic|heif)$/i)
+      );
+      
+      if (allHEIC) {
+        return res.status(400).json({ 
+          error: 'HEIC bestanden konden niet verwerkt worden',
+          suggestion: 'Gebruik een moderne browser (Chrome/Edge/Safari) voor automatische conversie, of converteer de foto\'s naar JPEG',
+          processed: processedImages.length,
+          total: req.files.length
+        });
+      }
+      
+      return res.status(500).json({ 
+        error: 'Geen gegevens kunnen extraheren uit de afbeeldingen',
+        processed: processedImages.length,
+        total: req.files.length
       });
     }
+
+    // Combine training_info from all results (use first non-empty)
+    const combinedData = {
+      training_info: allParsedData.find(d => d.training_info?.titel)?.training_info || allParsedData[0]?.training_info || {},
+      deelnemers: []
+    };
+
+    // Merge all deelnemers from all images
+    allParsedData.forEach((data, idx) => {
+      if (data.deelnemers) {
+        combinedData.deelnemers.push(...data.deelnemers);
+      }
+    });
+
+    // Deduplicate deelnemers by email (case-insensitive)
+    const uniqueDeelnemers = Array.from(
+      new Map(
+        combinedData.deelnemers
+          .filter(d => d.email) // Only deelnemers with email
+          .map(d => [d.email.toLowerCase(), d])
+      ).values()
+    );
+
+    // Add deelnemers without email (can't deduplicate these)
+    const noEmailDeelnemers = combinedData.deelnemers.filter(d => !d.email);
+    const finalDeelnemers = [...uniqueDeelnemers, ...noEmailDeelnemers];
+
+    console.log(`Total deelnemers: ${combinedData.deelnemers.length}, Unique: ${finalDeelnemers.length}`);
 
     // 2. Generate CSV
     const csvRows = ['Naam,Bedrijf,Email,Aanwezig,Handtekening'];
-    if (parsedData.deelnemers) {
-      parsedData.deelnemers.forEach(d => {
-        csvRows.push(`"${d.naam || ''}","${d.bedrijf || ''}","${d.email || ''}","${d.aanwezig ? 'Ja' : 'Nee'}","${d.handtekening ? 'Ja' : 'Nee'}"`);
-      });
-    }
+    finalDeelnemers.forEach(d => {
+      csvRows.push(`"${d.naam || ''}","${d.bedrijf || ''}","${d.email || ''}","${d.aanwezig ? 'Ja' : 'Nee'}","${d.handtekening ? 'Ja' : 'Nee'}"`);
+    });
     const csvContent = csvRows.join('\n');
 
-    // 3. Create PDF from image
+    // 3. Create multi-page PDF from images
     const pdfDoc = await PDFDocument.create();
 
-    // Convert image to PNG if needed and embed
-    const pngBuffer = await sharp(req.file.buffer)
-      .png()
-      .toBuffer();
+    for (let i = 0; i < processedImages.length; i++) {
+      console.log(`Adding page ${i + 1}/${processedImages.length} to PDF`);
+      
+      // Convert JPEG to PNG for pdf-lib
+      const pngBuffer = await sharp(processedImages[i])
+        .png()
+        .toBuffer();
 
-    const pngImage = await pdfDoc.embedPng(pngBuffer);
-    const { width, height } = pngImage.scale(1);
+      const pngImage = await pdfDoc.embedPng(pngBuffer);
+      const { width, height } = pngImage.scale(1);
 
-    // Calculate page size to fit image (A4 max)
-    const maxWidth = 595; // A4 width in points
-    const maxHeight = 842; // A4 height in points
-    const scale = Math.min(maxWidth / width, maxHeight / height, 1);
+      // Calculate page size to fit image (A4 max)
+      const maxWidth = 595; // A4 width in points
+      const maxHeight = 842; // A4 height in points
+      const scale = Math.min(maxWidth / width, maxHeight / height, 1);
 
-    const page = pdfDoc.addPage([width * scale, height * scale]);
-    page.drawImage(pngImage, {
-      x: 0,
-      y: 0,
-      width: width * scale,
-      height: height * scale
-    });
+      const page = pdfDoc.addPage([width * scale, height * scale]);
+      page.drawImage(pngImage, {
+        x: 0,
+        y: 0,
+        width: width * scale,
+        height: height * scale
+      });
+    }
+
+    console.log(`PDF generated: ${processedImages.length} pages`);
 
     const pdfBytes = await pdfDoc.save();
     const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
@@ -249,13 +407,23 @@ Regels:
     // 4. Return all data
     res.json({
       success: true,
-      data: parsedData,
+      data: {
+        training_info: combinedData.training_info,
+        deelnemers: finalDeelnemers
+      },
       csv: csvContent,
       pdf: pdfBase64,
       summary: {
-        totaal: parsedData.deelnemers?.length || 0,
-        aanwezig: parsedData.deelnemers?.filter(d => d.aanwezig).length || 0,
-        training: parsedData.training_info?.titel || 'Onbekend'
+        totaal: finalDeelnemers.length,
+        aanwezig: finalDeelnemers.filter(d => d.aanwezig).length || 0,
+        training: combinedData.training_info?.titel || 'Onbekend'
+      },
+      metadata: {
+        totalImages: req.files.length,
+        processedImages: processedImages.length,
+        totalContacts: combinedData.deelnemers.length,
+        uniqueContacts: finalDeelnemers.length,
+        pdfPages: processedImages.length
       }
     });
 
@@ -267,12 +435,16 @@ Regels:
 
 // ============ SEND EMAIL API ============
 
-app.post('/api/send', async (req, res) => {
+apiRouter.post('/api/send', async (req, res) => {
   try {
     const { contactIds, csv, pdf, summary, customMessage } = req.body;
 
     if (!contactIds || contactIds.length === 0) {
       return res.status(400).json({ error: 'Selecteer minimaal één contactpersoon' });
+    }
+
+    if (!graphClient) {
+      return res.status(500).json({ error: 'Email service niet beschikbaar. Controleer server configuratie.' });
     }
 
     const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
@@ -291,11 +463,10 @@ app.post('/api/send', async (req, res) => {
     const results = [];
     for (const contact of selectedContacts) {
       try {
-        await transporter.sendMail({
-          from: `"Steff - The House of Coaching" <${process.env.SMTP_USER}>`,
+        await graphClient.sendEmail({
           to: contact.email,
           subject: `Aanwezigheidslijst: ${summary?.training || 'Training'} - ${dateStr}`,
-          html: `
+          htmlBody: `
             <p>Beste ${contact.name},</p>
 
             <p>Hierbij de aanwezigheidslijst van de training.</p>
@@ -316,7 +487,7 @@ app.post('/api/send', async (req, res) => {
             </ul>
 
             <p>Met vriendelijke groeten,</p>
-            <p>Steff<br>The House of Coaching</p>
+            <p>${process.env.SENDER_NAME || 'Steff'}<br>The House of Coaching</p>
           `,
           attachments: [
             {
@@ -354,6 +525,15 @@ app.post('/api/send', async (req, res) => {
   }
 });
 
+// ============ MOUNT ROUTER ============
+
+// Mount API router with or without base path
+if (BASE_PATH) {
+  app.use(BASE_PATH, apiRouter);
+} else {
+  app.use(apiRouter);
+}
+
 // ============ START SERVER ============
 
 app.listen(PORT, () => {
@@ -365,4 +545,11 @@ app.listen(PORT, () => {
   ║  Server draait op: http://localhost:${PORT}  ║
   ╚═══════════════════════════════════════════╝
   `);
+  console.log('Environment:', {
+    geminiConfigured: !!process.env.GEMINI_API_KEY,
+    graphConfigured: !!graphClient,
+    port: PORT,
+    basePath: BASE_PATH || '/'
+  });
 });
+
