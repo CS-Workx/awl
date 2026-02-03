@@ -1,15 +1,14 @@
 // Detect BASE_PATH van Service Worker URL
 const BASE_PATH = self.location.pathname.replace('/sw.js', '');
 
-const CACHE_NAME = 'awl-scanner-v3'; // Versie bump voor HEIC support + dynamic manifest
+const CACHE_NAME = 'awl-scanner-v4'; // Versie bump: pure server-side HEIC
 const urlsToCache = [
   BASE_PATH + '/',
   BASE_PATH + '/index.html',
   BASE_PATH + '/manifest.json',  // Dynamic endpoint
   BASE_PATH + '/icon-192.png',
   BASE_PATH + '/icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
-  'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js'  // HEIC support library
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
 ].map(url => {
   // Voor externe URLs, return as-is
   if (url.startsWith('http')) return url;
