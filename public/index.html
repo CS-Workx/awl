@@ -7,8 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#4F46E5">
   <title>AWL Scanner</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icon-192.png">
+  <!-- Manifest en icon links worden dynamisch ingeladen via JavaScript voor BASE_PATH support -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * {
@@ -790,7 +789,27 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    // State
+    // ============ BASE_PATH AUTO-DETECTION ============
+    // Detect base path voor subfolder deployment (bijv. /awl)
+    const BASE_PATH = (() => {
+      const path = window.location.pathname;
+      // Match eerste segment: /awl/, /awl/index.html, etc.
+      const match = path.match(/^\/([^\/]+)/);
+      // Als we in een subfolder zitten (niet root en niet een file)
+      if (match && match[1] && match[1] !== 'index.html') {
+        return '/' + match[1];
+      }
+      return '';
+    })();
+
+    // Helper functie voor API URLs
+    function getApiUrl(path) {
+      return BASE_PATH + path;
+    }
+
+    console.log('🔧 BASE_PATH detected:', BASE_PATH || '/ (root)');
+
+    // ============ STATE ============
     let currentStep = 1;
     let contacts = [];
     let selectedContacts = new Set();
@@ -799,6 +818,22 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+      // Inject manifest en icon links met BASE_PATH
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = BASE_PATH + '/manifest.json';
+      document.head.appendChild(manifestLink);
+
+      const iconLink = document.createElement('link');
+      iconLink.rel = 'apple-touch-icon';
+      iconLink.href = BASE_PATH + '/icon-192.png';
+      document.head.appendChild(iconLink);
+
+      console.log('📱 PWA assets loaded:', {
+        manifest: manifestLink.href,
+        icon: iconLink.href
+      });
+
       loadContacts();
       setupFileInput();
     });
@@ -965,7 +1000,7 @@
       });
 
       try {
-        const response = await fetch('/api/scan', {
+        const response = await fetch(getApiUrl('/api/scan'), {
           method: 'POST',
           body: formData
         });
@@ -1025,7 +1060,7 @@
     // Contacts Management
     async function loadContacts() {
       try {
-        const response = await fetch('/api/contacts');
+        const response = await fetch(getApiUrl('/api/contacts'));
         contacts = await response.json();
         renderContacts();
         renderSettingsContacts();
@@ -1099,7 +1134,7 @@
       }
 
       try {
-        const response = await fetch('/api/contacts', {
+        const response = await fetch(getApiUrl('/api/contacts'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email })
@@ -1127,7 +1162,7 @@
       }
 
       try {
-        const response = await fetch('/api/contacts', {
+        const response = await fetch(getApiUrl('/api/contacts'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email })
@@ -1148,7 +1183,7 @@
       if (!confirm('Weet je zeker dat je dit contact wilt verwijderen?')) return;
 
       try {
-        await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
+        await fetch(getApiUrl(`/api/contacts/${id}`), { method: 'DELETE' });
         selectedContacts.delete(id);
         await loadContacts();
         showToast('Contact verwijderd', 'success');
@@ -1172,7 +1207,7 @@
       showLoading('Email versturen...');
 
       try {
-        const response = await fetch('/api/send', {
+        const response = await fetch(getApiUrl('/api/send'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1290,8 +1325,12 @@
 
     // Service Worker Registration
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(err => {
-        console.log('ServiceWorker registration failed:', err);
+      navigator.serviceWorker.register(BASE_PATH + '/sw.js', { 
+        scope: BASE_PATH + '/' 
+      }).then(reg => {
+        console.log('✓ ServiceWorker registered:', reg.scope);
+      }).catch(err => {
+        console.log('✗ ServiceWorker registration failed:', err);
       });
     }
   </script>
