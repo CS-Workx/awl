@@ -19,12 +19,19 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const nodemailer = require('nodemailer');
+const GraphEmailClient = require('./graphClient');
 const { PDFDocument } = require('pdf-lib');
 const sharp = require('sharp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// In-memory contacts storage (Vercel serverless compatible)
+let contacts = [
+  { id: 1, name: "Syntra Bizz", email: "admin@syntrabizz.be" },
+  { id: 2, name: "Syntra West", email: "admin@syntrawest.be" },
+  { id: 3, name: "Cevora", email: "admin@cevora.be" }
+];
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
@@ -37,43 +44,23 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB max
 });
 
-// Data storage paths
-const DATA_DIR = path.join(__dirname, '../data');
-const CONTACTS_FILE = path.join(DATA_DIR, 'contacts.json');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Initialize contacts file if doesn't exist
-if (!fs.existsSync(CONTACTS_FILE)) {
-  fs.writeFileSync(CONTACTS_FILE, JSON.stringify([
-    { id: 1, name: "Syntra Bizz", email: "admin@syntrabizz.be" },
-    { id: 2, name: "Syntra West", email: "admin@syntrawest.be" },
-    { id: 3, name: "Cevora", email: "admin@cevora.be" }
-  ], null, 2));
-}
-
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Email transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
-});
+// Initialize Graph API client for email sending
+let graphClient;
+try {
+  graphClient = new GraphEmailClient();
+  console.log('✓ Microsoft Graph API client initialized');
+} catch (error) {
+  console.error('✗ Graph API initialization failed:', error.message);
+  console.error('Email sending will not work. Check .env configuration.');
+}
 
 // ============ CONTACTS API ============
 
 app.get('/api/contacts', (req, res) => {
   try {
-    const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
     res.json(contacts);
   } catch (error) {
     res.status(500).json({ error: 'Kon contacten niet laden' });
@@ -87,14 +74,12 @@ app.post('/api/contacts', (req, res) => {
       return res.status(400).json({ error: 'Naam en email zijn verplicht' });
     }
 
-    const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
     const newContact = {
       id: Date.now(),
       name,
       email
     };
     contacts.push(newContact);
-    fs.writeFileSync(CONTACTS_FILE, JSON.stringify(contacts, null, 2));
     res.json(newContact);
   } catch (error) {
     res.status(500).json({ error: 'Kon contact niet toevoegen' });
@@ -104,9 +89,7 @@ app.post('/api/contacts', (req, res) => {
 app.delete('/api/contacts/:id', (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    let contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
     contacts = contacts.filter(c => c.id !== id);
-    fs.writeFileSync(CONTACTS_FILE, JSON.stringify(contacts, null, 2));
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Kon contact niet verwijderen' });
@@ -276,7 +259,10 @@ app.post('/api/send', async (req, res) => {
       return res.status(400).json({ error: 'Selecteer minimaal één contactpersoon' });
     }
 
-    const contacts = JSON.parse(fs.readFileSync(CONTACTS_FILE, 'utf8'));
+    if (!graphClient) {
+      return res.status(500).json({ error: 'Email service niet beschikbaar. Controleer server configuratie.' });
+    }
+
     const selectedContacts = contacts.filter(c => contactIds.includes(c.id));
 
     if (selectedContacts.length === 0) {
@@ -292,11 +278,10 @@ app.post('/api/send', async (req, res) => {
     const results = [];
     for (const contact of selectedContacts) {
       try {
-        await transporter.sendMail({
-          from: `"Steff - The House of Coaching" <${process.env.SMTP_USER}>`,
+        await graphClient.sendEmail({
           to: contact.email,
           subject: `Aanwezigheidslijst: ${summary?.training || 'Training'} - ${dateStr}`,
-          html: `
+          htmlBody: `
             <p>Beste ${contact.name},</p>
 
             <p>Hierbij de aanwezigheidslijst van de training.</p>
@@ -317,7 +302,7 @@ app.post('/api/send', async (req, res) => {
             </ul>
 
             <p>Met vriendelijke groeten,</p>
-            <p>Steff<br>The House of Coaching</p>
+            <p>${process.env.SENDER_NAME || 'Steff'}<br>The House of Coaching</p>
           `,
           attachments: [
             {
