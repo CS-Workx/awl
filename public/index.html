@@ -23,6 +23,17 @@
       --success: #10B981;
       --warning: #F59E0B;
       --danger: #EF4444;
+      
+      /* Light mode colors */
+      --bg-primary: #FFFFFF;
+      --bg-secondary: #F9FAFB;
+      --bg-tertiary: #F3F4F6;
+      --text-primary: #111827;
+      --text-secondary: #6B7280;
+      --border-color: #E5E7EB;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --card-bg: #FFFFFF;
+      
       --gray-50: #F9FAFB;
       --gray-100: #F3F4F6;
       --gray-200: #E5E7EB;
@@ -32,10 +43,32 @@
       --gray-900: #111827;
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root {
+        /* Dark mode colors */
+        --bg-primary: #1F2937;
+        --bg-secondary: #111827;
+        --bg-tertiary: #374151;
+        --text-primary: #F9FAFB;
+        --text-secondary: #9CA3AF;
+        --border-color: #374151;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --card-bg: #1F2937;
+        
+        --gray-50: #374151;
+        --gray-100: #4B5563;
+        --gray-200: #6B7280;
+        --gray-300: #9CA3AF;
+        --gray-500: #D1D5DB;
+        --gray-700: #E5E7EB;
+        --gray-900: #F9FAFB;
+      }
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--gray-50);
-      color: var(--gray-900);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
       min-height: 100vh;
       padding-bottom: env(safe-area-inset-bottom);
     }
@@ -75,17 +108,18 @@
 
     /* Cards */
     .card {
-      background: white;
+      background: var(--card-bg);
       border-radius: 1rem;
       padding: 1.5rem;
       margin-bottom: 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px var(--shadow);
+      border: 1px solid var(--border-color);
     }
 
     .card h2 {
       font-size: 1rem;
       font-weight: 600;
-      color: var(--gray-700);
+      color: var(--text-primary);
       margin-bottom: 1rem;
       display: flex;
       align-items: center;
@@ -166,7 +200,7 @@
 
     .capture-area:hover {
       border-color: var(--primary);
-      background: white;
+      background: var(--bg-tertiary);
     }
 
     .capture-area.has-image {
@@ -590,13 +624,13 @@
         </div>
 
         <!-- Warning banner for image limit -->
-        <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 12px; margin: 15px 0; border-radius: 8px; font-size: 14px;">
+        <div style="background: var(--warning); background-opacity: 0.1; border: 1px solid var(--warning); padding: 12px; margin: 15px 0; border-radius: 8px; font-size: 14px; color: var(--text-primary);">
           ⚠️ <strong>Let op:</strong> Maximum 3 foto's per keer aanbevolen voor optimale prestaties. Voor meer foto's: verwerk in meerdere batches.
         </div>
 
         <input type="file" id="fileInput" accept="image/*" multiple capture="environment">
 
-        <div id="imageCount" style="display:none; margin-top: 10px; text-align: center; color: #666;">
+        <div id="imageCount" style="display:none; margin-top: 10px; text-align: center; color: var(--text-secondary);">
           <strong>Geselecteerd:</strong> <span id="imageCountText">0</span> foto's
         </div>
 
