@@ -33,11 +33,15 @@ from services.vision_service import VisionService
 # Load environment variables
 load_dotenv()
 
+# Get base path from environment (empty for local, /offer-builder for VPS)
+base_path = os.getenv('BASE_PATH', '')
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Syntra Bizz Offer Generator API",
     description="AI-assisted custom training offer generation system",
-    version="1.0.0"
+    version="1.0.0",
+    root_path=base_path
 )
 
 # Configure CORS
@@ -59,6 +63,11 @@ template_path = os.getenv('TEMPLATE_PATH', './templates/default.docx')
 output_dir = os.getenv('OUTPUT_DIR', './generated_offers')
 templates_dir = os.getenv('TEMPLATES_DIR', './templates')
 
+# Ensure output directories exist
+os.makedirs(output_dir, exist_ok=True)
+os.makedirs(templates_dir, exist_ok=True)
+os.makedirs(os.path.join(templates_dir, 'user_uploads'), exist_ok=True)
+
 ocr_service = OCRService(gemini_api_key)
 ai_extraction_service = AIExtractionService(gemini_api_key)
 scraper_service = ScraperService(ai_extraction_service)
@@ -76,6 +85,29 @@ generated_files = {}
 async def root():
     """Health check endpoint"""
     return {"status": "ok", "message": "Syntra Bizz Offer Generator API is running"}
+
+
+@app.get("/health")
+async def health_check():
+    """VPS health check endpoint"""
+    return {
+        "status": "operational",
+        "version": "1.0.0",
+        "message": "Offer Builder API"
+    }
+
+
+@app.get("/api/status")
+async def api_status():
+    """Configuration status endpoint"""
+    return {
+        "gemini_configured": bool(gemini_api_key),
+        "base_path": os.getenv('BASE_PATH', ''),
+        "port": os.getenv('PORT', '8765'),
+        "template_exists": os.path.exists(template_path),
+        "output_dir": output_dir,
+        "templates_dir": templates_dir
+    }
 
 
 @app.post("/api/extract-crm")
